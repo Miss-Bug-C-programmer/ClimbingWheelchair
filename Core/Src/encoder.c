@@ -133,7 +133,7 @@ void calcVelFromEncoder(uint16_t *encoder_vals, double *velocities)
 	else if (diff_enc_left > ENCODER_MAX / 2.0)
 		diff_enc_left -= ENCODER_MAX;
 
-//	double temp_vels[2];
+	//unit: m/s
 	velocities[RIGHT_INDEX] = (double)diff_enc_right / ENCODER_MAX * M_PI * WHEEL_DIA / dt;
 	velocities[LEFT_INDEX] = -(double)diff_enc_left / ENCODER_MAX * M_PI * WHEEL_DIA / dt;
 
@@ -159,7 +159,7 @@ void calcVelFromEncoder(uint16_t *encoder_vals, double *velocities)
 		velocities[LEFT_INDEX] = velocities_prev[LEFT_INDEX] + WHEEL_ACC_LIMIT * dt * (left_acc / fabs(left_acc));
 	}
 
-	//Exponential filter for each velocity
+	//Exponential filter for each velocity10
 	velocities[RIGHT_INDEX] = velocities[RIGHT_INDEX] * EXPONENTIAL_ALPHA + (1.0 - EXPONENTIAL_ALPHA) * velocities_prev[RIGHT_INDEX];
 	velocities[LEFT_INDEX] = velocities[LEFT_INDEX] * EXPONENTIAL_ALPHA + (1.0 - EXPONENTIAL_ALPHA) * velocities_prev[LEFT_INDEX];
 

@@ -24,6 +24,8 @@
 /* USER CODE BEGIN Includes */
 #include "adc.h"
 #include "encoder.h"
+#include <math.h>
+#include <stdio.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -37,12 +39,10 @@ typedef struct{
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-//Frequency determines number of ticks per second
-//Therefore, s/ticks = 1/(FREQUENCY)
-#define FREQUENCY 1000
-
 #define ADC_CHANNEL hspi1
-
+#define MOTOR_TIM htim3
+#define LEFT_MOTOR_CHANNEL CCR1
+#define RIGHT_MOTOR_CHANNEL CCR2
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -64,13 +64,38 @@ UART_HandleTypeDef huart3;
 DMA_HandleTypeDef hdma_usart3_rx;
 
 /* USER CODE BEGIN PV */
-//Raw sensor data
+//Variables to store raw data from various sensors
 int16_t adc_rawData[8];
 uint16_t encoder[2];
 
-//Processed data
+uint16_t e_stop = 1;
+
+//Variables to store processed data
 static Joystick_Def joystick;
 double velocity[2];
+double setpoint_vel[2];
+
+
+int16_t motor_command[2] = {0};
+uint8_t braked = 1; //Stores the brake status of left and right motors
+uint32_t brake_timer = 0;
+double engage_brakes_timeout = 5; //5s
+
+
+uint32_t prev_adc_time = 0;
+
+
+//Velocity stuff
+double target_heading, curr_heading;
+double angular_output = 0;
+
+
+
+//PID struct and their tunings. There's one PID controller for each motor
+PID_Struct left_pid, right_pid, left_ramp_pid, right_ramp_pid, left_d_ramp_pid, right_d_ramp_pid;
+double p = 450.0, i = 500.0, d = 0.0, f = 370, max_i_output = 30;
+
+
 
 /* USER CODE END PV */
 
@@ -86,7 +111,7 @@ static void MX_TIM2_Init(void);
 static void MX_USART3_UART_Init(void);
 static void MX_TIM3_Init(void);
 /* USER CODE BEGIN PFP */
-
+void setBrakes();
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -137,13 +162,213 @@ int main(void)
   ADC_Init(&ADC_CHANNEL);
   ADC_DataRequest();
   encoder_Init();
+  DWT_Init();
+
+  //Start wheel pwm pin
+  HAL_TIM_Base_Start(&MOTOR_TIM);
+  HAL_TIM_PWM_Start(&MOTOR_TIM, TIM_CHANNEL_1);
+  HAL_TIM_PWM_Start(&MOTOR_TIM, TIM_CHANNEL_2);
+
+  //********* WHEEL PID *********//
+  double base_left_ramp_rate = 100;
+  double base_right_ramp_rate = 100;
+  double base_left_d_ramp_rate = 200;
+  double base_right_d_ramp_rate = 100;
+
+  //Setup right wheel PID
+  PID_Init(&right_pid);
+  PID_setPIDF(&right_pid, p, i, d, f);
+  PID_setMaxIOutput(&right_pid, max_i_output);
+  PID_setOutputLimits(&right_pid, -500, 500);
+  PID_setFrequency(&right_pid, 1000);
+  PID_setOutputRampRate(&right_pid, base_right_ramp_rate);
+  PID_setOutputDescentRate(&right_pid, -base_right_d_ramp_rate);
+
+  //Setup left wheel PID
+  PID_Init(&left_pid);
+  PID_setPIDF(&left_pid, p, i, d, f);
+  PID_setMaxIOutput(&left_pid, max_i_output);
+  PID_setOutputLimits(&left_pid, -500, 500);
+  PID_setFrequency(&left_pid, 1000);
+  PID_setOutputRampRate(&left_pid, base_left_ramp_rate);
+  PID_setOutputDescentRate(&left_pid, -base_left_d_ramp_rate);
+
+  //********* WHEEL ACCEL RAMP PID *********//
+  double ramp_p = 300;
+  double ramp_d = 0;
+  double ramp_i = 0;
+  double max_ramp_rate_inc = 400;
+  //Setup right wheel ramp PID
+  PID_Init(&right_ramp_pid);
+  PID_setPIDF(&right_ramp_pid, ramp_p, ramp_i, ramp_d, 0);
+  PID_setOutputLimits(&right_ramp_pid, 0, 400);
+  PID_setOutputRampRate(&right_ramp_pid, max_ramp_rate_inc);
+  PID_setOutputDescentRate(&right_ramp_pid, -max_ramp_rate_inc);
+  PID_setFrequency(&right_ramp_pid, 1000);
+
+  //Setup left wheel ramp PID
+  PID_Init(&left_ramp_pid);
+  PID_setPIDF(&left_ramp_pid, ramp_p, ramp_i, ramp_d, 0);
+  PID_setOutputLimits(&left_ramp_pid, 0, 400);
+  PID_setOutputRampRate(&left_ramp_pid, max_ramp_rate_inc);
+  PID_setOutputDescentRate(&left_ramp_pid, -max_ramp_rate_inc);
+  PID_setFrequency(&left_ramp_pid, 1000);
+
+  //********* WHEEL DECEL RAMP PID *********//
+  double d_ramp_p = 600;
+  double max_d_ramp_rate_inc = 300;
+  double max_d_increase = 350;
+  //Setup right wheel d ramp PID
+  PID_Init(&right_d_ramp_pid);
+  PID_setPIDF(&right_d_ramp_pid, d_ramp_p, 0, 0, 0);
+  PID_setOutputLimits(&right_d_ramp_pid, 0, max_d_increase);
+  PID_setOutputRampRate(&right_d_ramp_pid, max_d_ramp_rate_inc);
+  PID_setOutputDescentRate(&right_d_ramp_pid, -max_d_ramp_rate_inc);
+  PID_setFrequency(&right_d_ramp_pid, 1000);
+
+  //Setup left wheel d ramp PID
+  PID_Init(&left_d_ramp_pid);
+  PID_setPIDF(&left_d_ramp_pid, d_ramp_p, 0, 0, 0);
+  PID_setOutputLimits(&left_d_ramp_pid, 0, max_d_increase);
+  PID_setOutputRampRate(&left_d_ramp_pid, max_d_ramp_rate_inc);
+  PID_setOutputDescentRate(&left_d_ramp_pid, -max_d_ramp_rate_inc);
+  PID_setFrequency(&left_d_ramp_pid, 1000);
+
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  uint32_t prev_time = HAL_GetTick();
   while (1)
   {
+    //Loop should execute once every 1 tick
+    if(HAL_GetTick() - prev_time >= 1)
+    {
+	encoderRead(encoder);
+	calcVelFromEncoder(encoder, velocity);
+	e_stop = HAL_GPIO_ReadPin(Brake_Wheel_GPIO_Port, Brake_Wheel_Pin);
+
+	//Need a way to calculate velocity
+	setpoint_vel[LEFT_INDEX] = (double)joystick.x;
+	setpoint_vel[RIGHT_INDEX] = (double)joystick.y[1];
+
+	 //Heading is synonymous to radius of curvature for given velocity pair
+	double target_angular = (setpoint_vel[RIGHT_INDEX] - setpoint_vel[LEFT_INDEX]);
+	double curr_angular = (velocity[RIGHT_INDEX] - velocity[LEFT_INDEX]);
+	double target_linear = (setpoint_vel[RIGHT_INDEX] + setpoint_vel[LEFT_INDEX]) / 2.0;
+	double curr_linear = (velocity[RIGHT_INDEX] + velocity[LEFT_INDEX]) / 2.0;
+	target_heading = atan2(target_linear, target_angular);
+	curr_heading = atan2(curr_linear, curr_angular);
+
+	//This case might happen when curr_heading is M_PI and target_heading is -M_PI
+	//In this case, both values should be equal signs
+	if(target_heading == M_PI || curr_heading == M_PI)
+	{
+	  curr_heading = fabs(curr_heading);
+	  target_heading = fabs(target_heading);
+	}
+
+	//When angular_output negative, right wheel is slower
+	//When angular_output positive, left wheel is slower
+	angular_output = (target_heading - curr_heading) / M_PI;
+	int sign = angular_output / fabs(angular_output);
+
+	//Sigmoid curve to make angular_output more sensitive in mid range (~0.5)
+	//~0.5 is max value that occurs when going from pure rotation to pure forward
+	angular_output = 1/(1 + exp(-15*(fabs(angular_output) - 0.35))) * sign;
+
+	//Small velocities cause large changes to heading due to noise
+	//Set difference to 0 if below threshold, no correction
+	if(fabs(velocity[LEFT_INDEX]) < 0.1 && fabs(velocity[RIGHT_INDEX]) < 0.1)
+		angular_output = 0;
+
+	//Amount of penalty to setpoint depends on how far away from the target heading
+	//Scale may increase over 100%, but does not matter as the heading approaches target heading
+	//scale will approach 100%
+	if(setpoint_vel[LEFT_INDEX] != 0.0 || setpoint_vel[RIGHT_INDEX] != 0.0)
+	{
+		setpoint_vel[LEFT_INDEX] *= (1 + angular_output);
+		setpoint_vel[RIGHT_INDEX] *= (1 - angular_output);
+	}
+
+	 //If e stop engaged, override setpoints to 0
+	if(e_stop == 1)
+	{
+		setpoint_vel[LEFT_INDEX] = 0;
+		setpoint_vel[RIGHT_INDEX] = 0;
+	}
+	//If data is old, set setpoint to 0
+	else if((HAL_GetTick() - prev_adc_time) > FREQUENCY * 0.2)
+	{
+		setpoint_vel[LEFT_INDEX] = 0;
+		setpoint_vel[RIGHT_INDEX] = 0;
+	}
+
+	//TODO:understand how the brake works
+	//Unbrake motors if there is command, brake otherwise
+	setBrakes();
+
+	//Ensure there is a commanded velocity, otherwise reset PID
+	if(fabs(setpoint_vel[LEFT_INDEX]) == 0 && fabs(velocity[LEFT_INDEX]) < 0.1)
+	{
+	  motor_command[LEFT_INDEX] = 0;
+	  PID_reset(&left_pid);
+	}
+	else if(!braked)
+	{
+	    //ACCELERATE
+	    {
+		    double new_left_ramp = base_left_ramp_rate + PID_getOutput(&left_ramp_pid, fabs(velocity[LEFT_INDEX]), fabs(setpoint_vel[LEFT_INDEX]));
+		    PID_setOutputRampRate(&left_pid, new_left_ramp);
+	    }
+
+	    //DECELERATE
+	    {
+		    double new_left_ramp = base_left_d_ramp_rate + PID_getOutput(&left_d_ramp_pid, fabs(setpoint_vel[LEFT_INDEX]), fabs(velocity[LEFT_INDEX]));
+		    PID_setOutputDescentRate(&left_pid, -new_left_ramp);
+	    }
+
+	    motor_command[LEFT_INDEX] = PID_getOutput(&left_pid, velocity[LEFT_INDEX], setpoint_vel[LEFT_INDEX]);
+	}
+	//Ensure there is a commanded velocity, otherwise reset PID
+	if(fabs(setpoint_vel[RIGHT_INDEX]) == 0 && fabs(velocity[RIGHT_INDEX]) < 0.1)
+	{
+		motor_command[RIGHT_INDEX] = 0;
+		PID_reset(&right_pid);
+	}
+
+	//Ensure there is a commanded velocity, otherwise reset PID
+	if(fabs(setpoint_vel[RIGHT_INDEX]) == 0 && fabs(velocity[RIGHT_INDEX]) < 0.1)
+	{
+		motor_command[RIGHT_INDEX] = 0;
+		PID_reset(&right_pid);
+	}
+
+	else if(!braked)
+	{
+
+		//ACCELERATE
+		{
+			double new_right_ramp = base_right_ramp_rate + PID_getOutput(&right_ramp_pid, fabs(velocity[RIGHT_INDEX]), fabs(setpoint_vel[RIGHT_INDEX]));
+			PID_setOutputRampRate(&right_pid, new_right_ramp);
+		}
+
+		//DECELERATE
+		{
+			double new_right_ramp = base_right_d_ramp_rate + PID_getOutput(&right_d_ramp_pid, fabs(setpoint_vel[RIGHT_INDEX]), fabs(velocity[RIGHT_INDEX]));
+			PID_setOutputDescentRate(&right_pid, -new_right_ramp);
+		}
+
+		motor_command[RIGHT_INDEX] = PID_getOutput(&right_pid, velocity[RIGHT_INDEX], setpoint_vel[RIGHT_INDEX]);
+	}
+	//Send PID commands to motor
+	MOTOR_TIM.Instance->RIGHT_MOTOR_CHANNEL = motor_command[LEFT_INDEX] + 1500;
+	MOTOR_TIM.Instance->LEFT_MOTOR_CHANNEL = motor_command[RIGHT_INDEX] + 1500;
+
+    }
+
+    prev_time = HAL_GetTick();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -483,9 +708,9 @@ static void MX_TIM3_Init(void)
 
   /* USER CODE END TIM3_Init 1 */
   htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 180;
+  htim3.Init.Prescaler = 180-1;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 1000;
+  htim3.Init.Period = 20000-1;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
@@ -679,6 +904,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
   switch(GPIO_Pin){
     case AD_BUSY_Pin:{
       ADC_Read(&adc_rawData);
+      prev_adc_time = HAL_GetTick();
       //TODO: Process Joystick Data
       joystick.x = adc_rawData[0];
       joystick.y = adc_rawData[1];
@@ -692,6 +918,35 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
   }
 
 }
+
+void setBrakes()
+{
+  if((setpoint_vel[LEFT_INDEX] != 0 || setpoint_vel[RIGHT_INDEX] != 0))
+  {
+    //BRAKE_TIM.Instance->BRAKE_CHANNEL = 2000;
+    braked = 0;
+    brake_timer = 0;
+  }
+
+  else if(setpoint_vel[LEFT_INDEX] == 0 && setpoint_vel[RIGHT_INDEX] == 0)
+  {
+    if(fabs(velocity[LEFT_INDEX]) < 0.05 && fabs(velocity[RIGHT_INDEX]) < 0.05)
+    {
+      //Start timer before braking
+      if(brake_timer == 0)
+	brake_timer = HAL_GetTick();
+
+      else if(HAL_GetTick() - brake_timer > engage_brakes_timeout * FREQUENCY)
+      {
+	//BRAKE_TIM.Instance->BRAKE_CHANNEL = 1000;
+	braked = 1;
+	brake_timer = 0;
+      }
+    }
+  }
+}
+
+
 /* USER CODE END 4 */
 
 /**
