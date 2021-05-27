@@ -31,18 +31,27 @@
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 typedef struct{
-  int16_t x = 0;
-  int16_t y = 0;
+  double x = 0;
+  double y = 0;
 }Joystick_Def;
 
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define MAX(x, y) (((x) > (y)) ? (x) : (y))
+#define MIN(x, y) (((x) < (y)) ? (x) : (y))
+
 #define ADC_CHANNEL hspi1
 #define MOTOR_TIM htim3
 #define LEFT_MOTOR_CHANNEL CCR1
 #define RIGHT_MOTOR_CHANNEL CCR2
+
+#define MAX_JOYSTICK_X		100
+#define MAX_JOYSTICK_Y		100
+#define ADC_EXPONENTIAL_ALPHA 	0.85
+#define MAX_LIN_VEL		1//Maximum allowable speed is 1m/s
+#define MAX_ANG_VEL		1
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -72,6 +81,7 @@ uint16_t e_stop = 1;
 
 //Variables to store processed data
 static Joystick_Def joystick;
+int16_t adc_rawData_prev[2];
 double velocity[2];
 double setpoint_vel[2];
 
@@ -112,6 +122,7 @@ static void MX_USART3_UART_Init(void);
 static void MX_TIM3_Init(void);
 /* USER CODE BEGIN PFP */
 void setBrakes();
+void calcVelFromJoystick(Joystick_Def *joystick, double *vel_setpoint);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -250,9 +261,7 @@ int main(void)
 	e_stop = HAL_GPIO_ReadPin(Brake_Wheel_GPIO_Port, Brake_Wheel_Pin);
 
 	//Need a way to calculate velocity
-	setpoint_vel[LEFT_INDEX] = (double)joystick.x;
-	setpoint_vel[RIGHT_INDEX] = (double)joystick.y[1];
-
+	calcVelFromJoystick(&joystick, setpoint_vel);
 	 //Heading is synonymous to radius of curvature for given velocity pair
 	double target_angular = (setpoint_vel[RIGHT_INDEX] - setpoint_vel[LEFT_INDEX]);
 	double curr_angular = (velocity[RIGHT_INDEX] - velocity[LEFT_INDEX]);
@@ -906,8 +915,19 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
       ADC_Read(&adc_rawData);
       prev_adc_time = HAL_GetTick();
       //TODO: Process Joystick Data
-      joystick.x = adc_rawData[0];
-      joystick.y = adc_rawData[1];
+      //Exponential filter on adc raw data
+      adc_rawData[0] = adc_rawData[0] * (1 - ADC_EXPONENTIAL_ALPHA) + adc_rawData_prev[0] * ADC_EXPONENTIAL_ALPHA;
+      adc_rawData[1] = adc_rawData[1] * (1 - ADC_EXPONENTIAL_ALPHA) + adc_rawData_prev[1] * ADC_EXPONENTIAL_ALPHA;
+      adc_rawData_prev[0] = adc_rawData[0];
+      adc_rawData_prev[1] = adc_rawData[1];
+
+      //normalise joystick reading between 0 and 1
+      joystick.x = (double) adc_rawData[0] / MAX_JOYSTICK_X;
+      joystick.y = (double) adc_rawData[1] / MAX_JOYSTICK_Y;
+      joystick.x = MAX(-1,MIN(joystick.x, 1));
+      joystick.y = MAX(-1,MIN(joystick.y, 1));
+
+
       HAL_DELAY(5);
       ADC_DataRequest();
     }
@@ -946,6 +966,13 @@ void setBrakes()
   }
 }
 
+void calcVelFromJoystick(Joystick_Def *joystick, double *vel_setpoint){
+  double lin_vel = joystick->y * MAX_LIN_VEL;
+  double ang_vel = joystick->x * MAX_ANG_VEL;
+
+  vel_setpoint[LEFT_INDEX] = (2 * lin_vel - ang_vel * BASE_WIDTH) / (2 * WHEEL_DIA);
+  vel_setpoint[RIGHT_INDEX] = (2 * lin_vel + ang_vel * BASE_WIDTH) / (2 * WHEEL_DIA);
+}
 
 /* USER CODE END 4 */
 
