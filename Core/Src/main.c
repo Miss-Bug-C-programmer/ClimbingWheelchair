@@ -26,6 +26,8 @@
 #include "encoder.h"
 #include <math.h>
 #include <stdio.h>
+#include "mpu6050.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -73,37 +75,35 @@ UART_HandleTypeDef huart3;
 DMA_HandleTypeDef hdma_usart3_rx;
 
 /* USER CODE BEGIN PV */
-//Variables to store raw data from various sensors
+//Joystick/ADC
 int16_t adc_rawData[8];
-uint16_t encoder[2];
-
-uint16_t e_stop = 1;
-
-//Variables to store processed data
-static Joystick_Def joystick;
 int16_t adc_rawData_prev[2];
+uint32_t prev_adc_time = 0;
+static Joystick_Def joystick;
+
+//Encoder, Base wheel control
+uint16_t encoder[2];
 double velocity[2];
 double setpoint_vel[2];
-
-
 int16_t motor_command[2] = {0};
+uint16_t e_stop = 1; //Store the status of emergency stop button
 uint8_t braked = 1; //Stores the brake status of left and right motors
 uint32_t brake_timer = 0;
 double engage_brakes_timeout = 5; //5s
-
-
-uint32_t prev_adc_time = 0;
-
 
 //Velocity stuff
 double target_heading, curr_heading;
 double angular_output = 0;
 
-
-
 //PID struct and their tunings. There's one PID controller for each motor
 PID_Struct left_pid, right_pid, left_ramp_pid, right_ramp_pid, left_d_ramp_pid, right_d_ramp_pid;
 double p = 450.0, i = 500.0, d = 0.0, f = 370, max_i_output = 30;
+
+//Lifting mechanism
+MPU6050_t MPU6050;
+
+
+
 
 
 
@@ -174,6 +174,7 @@ int main(void)
   ADC_DataRequest();
   encoder_Init();
   DWT_Init();
+  while (MPU6050_Init(&hi2c1) == 1);
 
   //Start wheel pwm pin
   HAL_TIM_Base_Start(&MOTOR_TIM);
@@ -450,7 +451,7 @@ static void MX_I2C1_Init(void)
 
   /* USER CODE END I2C1_Init 1 */
   hi2c1.Instance = I2C1;
-  hi2c1.Init.ClockSpeed = 100000;
+  hi2c1.Init.ClockSpeed = 400000;
   hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
   hi2c1.Init.OwnAddress1 = 0;
   hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
