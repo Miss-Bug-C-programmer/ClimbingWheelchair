@@ -16,11 +16,8 @@
  *  @by: Rehabilitation Research Institute of Singapore
  *
  */
-
-#ifndef ADC_H
-#define ADC_H
-
-#include "stm32f429xx.h"
+#include "stm32f4xx_hal.h"
+#include "main.h"
 
 //Number of channels used
 #define CHANNEL_NUM		8
@@ -28,7 +25,7 @@
 // GPIO definition of AD7606
 #define AD7606_BUSY_EXTI_IRQn 			EXTI9_5_IRQn
 
-#define AD7606_CS_PIN             		GPIO_PIN_4
+#define AD7606_CS_PIN             	GPIO_PIN_4
 #define AD7606_CS_GPIO_PORT           	GPIOA
 #define AD7606_CLK_PIN                	GPIO_PIN_5
 #define AD7606_CLK_GPIO_PORT          	GPIOA
@@ -60,6 +57,13 @@
 #define AD7606_RANGE_HIGH_10V					HAL_GPIO_WritePin(AD7606_RANGE_PIN_Port, AD7606_RANGE_PIN, GPIO_PIN_SET)
 #define AD7606_RANGE_LOW_5V						HAL_GPIO_WritePin(AD7606_RANGE_PIN_Port, AD7606_RANGE_PIN, GPIO_PIN_RESET)
 
+#ifndef ADC_H
+#define ADC_H
+
+
+
+
+
 
 
 
@@ -67,7 +71,7 @@
   * @param  None.
   * @retval None.
   */
-void ADC_Init(void);
+void ADC_Init();
 
 /** @brief  Triggers one sample from AD7606.
 	*	After completing the conversion, the busy pin will trigger a GPIO interrupt callback function,
@@ -83,7 +87,5 @@ void ADC_DataRequest(void);
   * @retval None.
   */
 void ADC_Read(int16_t *data);
-
-extern ADCHandle  hADC;
 
 #endif
