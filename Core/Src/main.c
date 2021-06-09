@@ -58,9 +58,8 @@ typedef struct{
 #define LEFT_MOTOR_CHANNEL CCR1
 #define RIGHT_MOTOR_CHANNEL CCR2
 
-#define MAX_JOYSTICK_X		100
-#define MAX_JOYSTICK_Y		100
 #define ADC_EXPONENTIAL_ALPHA 	0.85
+#define ADC_TOLERANCE		1500 //Joystick value tolerance
 #define MAX_LIN_VEL		1//Maximum allowable speed is 1m/s
 #define MAX_ANG_VEL		1
 /* USER CODE END PD */
@@ -91,6 +90,7 @@ uint32_t prev_adc_time = 0;
 static Joystick_Def joystick = {.x = 0, .y =0.0,
 				.MAX_X = 26000, .MID_X = 16200, .MIN_X = 5900,
 				.MAX_Y = 27000, .MID_Y = 16000, .MIN_Y = 6800};
+
 
 //Encoder, Base wheel control
 uint16_t encoder[2];
@@ -196,7 +196,7 @@ int main(void)
   HAL_TIM_PWM_Start(&MOTOR_TIM, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&MOTOR_TIM, TIM_CHANNEL_2);
   MOTOR_TIM.Instance->RIGHT_MOTOR_CHANNEL = 1500;
-    	MOTOR_TIM.Instance->LEFT_MOTOR_CHANNEL = 1500;
+  MOTOR_TIM.Instance->LEFT_MOTOR_CHANNEL = 1500;
 //
 //  //********* WHEEL PID *********//
 //  double base_left_ramp_rate = 100;
@@ -275,9 +275,14 @@ int main(void)
       HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
       HAL_Delay(500);
       HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
-//      HAL_Delay(500);
-//      ADC_DataRequest();
-//      HAL_Delay(1);
+      HAL_Delay(500);
+
+      //Read joystick value
+//      ADC_DataRequest();.
+
+      //Get kamlan filtered angle from MPU6050
+      MPU6050_Read_All(&hi2c1, &MPU6050);
+
 
     //Loop should execute once every 1 tick
 //    if(HAL_GetTick() - prev_time >= 1)
@@ -406,7 +411,7 @@ int main(void)
 //    prev_time = HAL_GetTick();
 //
 //      if(HAL_GetTick() - prev_time >= 1){
-//	  MPU6050_Read_All(&hi2c1, &MPU6050);
+//
 //	  HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
 //	  ADC_DataRequest();
 ////	 HAL_Delay(500);
@@ -957,21 +962,26 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     case AD_BUSY_Pin:{
 
       ADC_Read(&adc_rawData[0]);
-//      prev_adc_time = HAL_GetTick();
-//      //TODO: Process Joystick Data
 //      //Exponential filter on adc raw data
       adc_rawData[0] = adc_rawData[0] * (1 - ADC_EXPONENTIAL_ALPHA) + adc_rawData_prev[0] * ADC_EXPONENTIAL_ALPHA;
       adc_rawData[1] = adc_rawData[1] * (1 - ADC_EXPONENTIAL_ALPHA) + adc_rawData_prev[1] * ADC_EXPONENTIAL_ALPHA;
       adc_rawData_prev[0] = adc_rawData[0];
       adc_rawData_prev[1] = adc_rawData[1];
 //
-//      //normalise joystick reading between 0 and 1
-      joystick.x = (double) adc_rawData[0] / MAX_JOYSTICK_X;
-      joystick.y = (double) adc_rawData[1] / MAX_JOYSTICK_Y;
+      //normalise joystick reading between 0 and 1
+      //MAX_X - MID_X != |MIN_X - MID_X|
+      if (adc_rawData[0] >= joystick.MID_X + ADC_TOLERANCE)
+	  joystick.x = (double)(adc_rawData[0] - joystick.MID_X - ADC_TOLERANCE)/(joystick.MAX_X - joystick.MID_X- ADC_TOLERANCE);
+      else if (adc_rawData[0] <= joystick.MID_X - ADC_TOLERANCE)
+      	  joystick.x = -(double)(adc_rawData[0] - joystick.MID_X + ADC_TOLERANCE)/(joystick.MIN_X - joystick.MID_X + ADC_TOLERANCE);
+
+      if (adc_rawData[1] >= joystick.MID_Y + ADC_TOLERANCE)
+      	  joystick.y = (double)(adc_rawData[1] - joystick.MID_Y - ADC_TOLERANCE)/(joystick.MAX_Y - joystick.MID_Y- ADC_TOLERANCE);
+      else if (adc_rawData[1] <= joystick.MID_Y - ADC_TOLERANCE)
+	    joystick.y = -(double)(adc_rawData[1] - joystick.MID_Y + ADC_TOLERANCE)/(joystick.MIN_Y - joystick.MID_Y + ADC_TOLERANCE);
+
       joystick.x = MAX(-1,MIN(joystick.x, 1));
       joystick.y = MAX(-1,MIN(joystick.y, 1));
-      count1++;
-
     }
 
       break;
