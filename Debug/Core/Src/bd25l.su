@@ -1,0 +1,7 @@
+bd25l.c:47:6:bd25l_Init	4	static
+bd25l.c:51:6:enableMotor	16	static
+bd25l.c:55:6:brakeMotor	16	static
+bd25l.c:59:6:setMotorDir	16	static
+bd25l.c:63:6:setMotorSpeed	32	static
+bd25l.c:127:9:readErrorStatus	16	static
+bd25l.c:134:6:runMotor	24	static

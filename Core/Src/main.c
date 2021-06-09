@@ -277,8 +277,8 @@ int main(void)
 //      MOTOR_TIM.Instance->LEFT_MOTOR_CHANNEL -= 50;
 
     //Loop should execute once every 1 tick
-//    if(HAL_GetTick() - prev_time >= 1)
-//    {
+    if(HAL_GetTick() - prev_time >= 1)
+    {
 //	encoderRead(encoder);
 //	calcVelFromEncoder(encoder, velocity);
 //	e_stop = HAL_GPIO_ReadPin(Brake_Wheel_GPIO_Port, Brake_Wheel_Pin);
@@ -398,9 +398,8 @@ int main(void)
 //	MOTOR_TIM.Instance->RIGHT_MOTOR_CHANNEL = motor_command[LEFT_INDEX] + 1500;
 //	MOTOR_TIM.Instance->LEFT_MOTOR_CHANNEL = motor_command[RIGHT_INDEX] + 1500;
 //
-//    }
-//
-//    prev_time = HAL_GetTick();
+    }
+    prev_time = HAL_GetTick();
 //
 //      if(HAL_GetTick() - prev_time >= 1){
 //

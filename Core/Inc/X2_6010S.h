@@ -5,11 +5,6 @@
  *      Author: angcx
  */
 
-
-
-
-
-
 #define HubM_UART3_TX_Pin 			GPIO_PIN_8
 #define HubM_UART3_TX_GPIO_Port 	GPIOD
 #define HubM_UART3_RX_Pin 			GPIO_PIN_9

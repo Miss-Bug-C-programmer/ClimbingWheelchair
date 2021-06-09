@@ -68,7 +68,7 @@ void send_HubMotor(Motor_ConfigTypeDef* motor, Motor_Command command, Motor_Feed
 	motor->send_buf[14] = (uint8_t)(sum & 0xFF00);
 
 
-	HAL_UART_Transmit(&huart3, (uint8_t)motor->send_buf, 15, 20);
+	HAL_UART_Transmit(&huart3, motor->send_buf, 15, 20);
 	HAL_UART_Receive_DMA(&huart3, motor->receive_buf, 15);
 }
 
