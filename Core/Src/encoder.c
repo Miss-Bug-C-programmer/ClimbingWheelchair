@@ -35,8 +35,8 @@ uint8_t spiWriteRead(uint8_t sendByte, Encoder encoder, state releaseLine){
 	//Initiate transfer from encoder
 	setCSLine(encoder, LOW);
 	DWT_Delay(3);
-	HAL_SPI_Transmit(&hspi2, (uint8_t*)sendByte, 1, 100);
-	HAL_SPI_Receive(&hspi2, (uint8_t *)data, 1, 100);
+	HAL_SPI_Transmit(&hspi2, &sendByte, 1, 100);
+	HAL_SPI_Receive(&hspi2, &data, 1, 100);
 	DWT_Delay(3);
 	setCSLine(encoder, releaseLine);
 
@@ -84,14 +84,14 @@ void setZeroSPI(Encoder encoder){
 	spiWriteRead(AMT22_NOP, encoder, LOW);
 	DWT_Delay(3);
 	spiWriteRead(AMT22_ZERO, encoder, HIGH);
-	delay(250);
+	HAL_Delay(250);
 }
 
 void resetPositionSPI(Encoder encoder){
 	spiWriteRead(AMT22_NOP, encoder, LOW);
 	DWT_Delay(3);
 	spiWriteRead(AMT22_RESET, encoder, HIGH);
-	delay(250);
+	HAL_Delay(250);
 }
 
 

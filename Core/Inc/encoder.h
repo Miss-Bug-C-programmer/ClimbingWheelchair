@@ -5,13 +5,6 @@
  *
  */
 
-#ifndef ENCODER_H
-#define ENCODER_H
-
-#include "stm32f429xx.h"
-#include "dwt_delay.h"
-#include "main.h"
-#include <math.h>
 
 /* SPI commands */
 #define AMT22_NOP       0x00  //Read Position
@@ -52,6 +45,13 @@
 #define CS2_LOW							HAL_GPIO_WritePin(SPI_CS2_GPIO_PORT, SPI_CS2_PIN, GPIO_PIN_RESET)
 
 
+#ifndef ENCODER_H
+#define ENCODER_H
+
+#include "stm32f429xx.h"
+#include "dwt_delay.h"
+#include "main.h"
+#include <math.h>
 
 
 /**

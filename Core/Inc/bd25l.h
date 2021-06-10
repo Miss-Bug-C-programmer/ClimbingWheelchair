@@ -26,7 +26,7 @@
 //#define ClimbM_IO_BRK1_Pin 			GPIO_PIN_14
 //#define ClimbM_IO_BRK1_GPIO_Port 	GPIOE
 //#define ClimbM_IO_ALM1_Pin 			GPIO_PIN_15
-#define ClimbM_IO_ALM1_GPIO_Port 	GPIOE
+//#define ClimbM_IO_ALM1_GPIO_Port 	GPIOE
 //#define ClimbSpeed_TIM2_CH3_Pin 		GPIO_PIN_10
 //#define ClimbSpeed_TIM2_CH3_GPIO_Port 	GPIOB
 //#define ClimbSpeed_TIM2_CH4_Pin 		GPIO_PIN_11
@@ -65,6 +65,11 @@ typedef struct{
 	uint8_t				ID;
 
 }Motor_TypeDef;
+
+extern Motor_TypeDef rearMotor, backMotor;
+
+void bd25l_Init(Motor_TypeDef* motor);
+
 
 /** @brief Enable motor to start or stop its operation. Stop does slowly unlike brake
  *  @params motor entity, state low enable, high stop motor slowly
@@ -109,4 +114,11 @@ uint8_t readErrorStatus(Motor_TypeDef* motor);
  *  @return
  */
 void runMotor(Motor_TypeDef* motor, float speed, uint8_t dir);
+
+/** @brief Engage and disengage EM brake
+ *  @params motor entity, high stop motor immediately
+ *  @return Void
+ */
+void emBrakeMotor(uint8_t state);
+
 #endif

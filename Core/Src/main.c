@@ -34,6 +34,7 @@
 #include <stdio.h>
 #include "mpu6050.h"
 #include "pid.h"
+#include "bd25l.h"
 
 /* USER CODE END Includes */
 
@@ -107,7 +108,7 @@ double p = 450.0, i = 500.0, d = 0.0, f = 370, max_i_output = 30;
 
 //Lifting mechanism
 MPU6050_t MPU6050;
-
+extern Motor_TypeDef rearMotor, backMotor; //declare in bd25l.c
 
 int count = 0;
 int count1 = 0;
@@ -178,13 +179,18 @@ int main(void)
 ////  DWT_Init();
 //  while(MPU6050_Init(&hi2c1)==1);
 
-//  //Start wheel pwm pin
-  HAL_TIM_Base_Start(&MOTOR_TIM);
-  HAL_TIM_PWM_Start(&MOTOR_TIM, TIM_CHANNEL_1);
-  HAL_TIM_PWM_Start(&MOTOR_TIM, TIM_CHANNEL_2);
-  MOTOR_TIM.Instance->RIGHT_MOTOR_CHANNEL = 1500;
-  MOTOR_TIM.Instance->LEFT_MOTOR_CHANNEL = 1500;
-  HAL_Delay(500);
+//  //Start base wheel pwm pin
+//  HAL_TIM_Base_Start(&MOTOR_TIM);
+//  HAL_TIM_PWM_Start(&MOTOR_TIM, TIM_CHANNEL_1);
+//  HAL_TIM_PWM_Start(&MOTOR_TIM, TIM_CHANNEL_2);
+//  MOTOR_TIM.Instance->RIGHT_MOTOR_CHANNEL = 1500;
+//  MOTOR_TIM.Instance->LEFT_MOTOR_CHANNEL = 1500;
+//  HAL_Delay(500);
+
+  //Initialize rear and back motor
+  bd25l_Init(&rearMotor);
+  bd25l_Init(&backMotor);
+  emBrakeMotor(1);
 
 //
 //  //********* WHEEL PID *********//
@@ -258,13 +264,25 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   uint32_t prev_time = HAL_GetTick();
+
+  //debug variable
+  uint32_t debug_prev_time = HAL_GetTick();
+  uint8_t led_status = 0;
   while (1)
   {
-      count++;
-      HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
-      HAL_Delay(500);
-      HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
-      HAL_Delay(500);
+      if (HAL_GetTick() - debug_prev_time >= 500){
+	  if (led_status == 0){
+	      count++;
+	      HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
+	      led_status = 1;
+	  }
+	  else if (led_status == 1){
+	      HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
+	      led_status = 0;
+	  }
+	  debug_prev_time = HAL_GetTick();
+      }
+
 
       //Read joystick value
 //      ADC_DataRequest();.
@@ -279,6 +297,8 @@ int main(void)
     //Loop should execute once every 1 tick
     if(HAL_GetTick() - prev_time >= 1)
     {
+//	runMotor(&rearMotor, 100, 1);
+//	runMotor(&backMotor, 100, 1);
 //	encoderRead(encoder);
 //	calcVelFromEncoder(encoder, velocity);
 //	e_stop = HAL_GPIO_ReadPin(Brake_Wheel_GPIO_Port, Brake_Wheel_Pin);

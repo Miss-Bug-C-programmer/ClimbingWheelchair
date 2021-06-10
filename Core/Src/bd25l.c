@@ -46,12 +46,17 @@ Motor_TypeDef backMotor =
 	.ID		= 2,
 };
 
-void bd25l_Init(void){
-
+void bd25l_Init(Motor_TypeDef* motor){
+	brakeMotor(motor, 0);
+	enableMotor(motor, 0);
 }
 
 void enableMotor(Motor_TypeDef* motor, uint8_t state){
 	HAL_GPIO_WritePin(motor->EN_port, motor->EN_pin, state);
+}
+
+void emBrakeMotor(uint8_t state){
+	HAL_GPIO_WritePin(Brake_Wheel_GPIO_Port, Brake_Wheel_Pin, state);
 }
 
 void brakeMotor(Motor_TypeDef* motor, uint8_t state){
@@ -138,15 +143,13 @@ uint8_t readErrorStatus(Motor_TypeDef* motor){
 }
 
 void runMotor(Motor_TypeDef* motor, float speed, uint8_t dir){
-	if (readErrorStatus(motor)){
-		brakeMotor(motor, 0);
-		enableMotor(motor, 0);
+//	if (readErrorStatus(motor)){
 		setMotorDir(motor, dir);
 		setMotorSpeed(motor, speed);
-	}
-	else{
-		brakeMotor(motor, 1);
-	}
+//	}
+//	else{
+//		brakeMotor(motor, 1);
+//	}
 
 }
 
