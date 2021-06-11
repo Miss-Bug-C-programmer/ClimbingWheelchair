@@ -1,8 +1,0 @@
-encoder.c:17:6:encoder_Init	8	static
-encoder.c:23:6:setCSLine	16	static
-encoder.c:30:9:spiWriteRead	24	static
-encoder.c:46:10:getPositionSPI	40	static
-encoder.c:82:6:setZeroSPI	16	static
-encoder.c:90:6:resetPositionSPI	16	static
-encoder.c:98:6:encoderRead	24	static
-encoder.c:104:6:calcVelFromEncoder	112	static

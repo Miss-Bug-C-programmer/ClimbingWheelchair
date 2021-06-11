@@ -1,3 +1,0 @@
-adc.c:27:6:ADC_Init	8	static
-adc.c:61:6:ADC_DataRequest	8	static
-adc.c:73:6:ADC_Read	16	static
