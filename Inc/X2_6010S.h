@@ -27,7 +27,6 @@ extern UART_HandleTypeDef huart3;
 extern DMA_HandleTypeDef hdma_usart3_rx;
 
 typedef struct{
-	uint8_t motorID;
 	uint8_t send_buf[15];
 	uint8_t receive_buf[15];
 }Motor_ConfigTypeDef;
@@ -66,8 +65,7 @@ void hubMotor_Init();
   * @param None
   * @retval None
   */
-void send_HubMotor(Motor_ConfigTypeDef* motor, Motor_Command command, Motor_Feedback_Command feedbackCommand,
-		uint16_t motor1_speed, uint16_t motor2_speed);
+void send_HubMotor(uint16_t motor1_speed, uint16_t motor2_speed);
 
 //TODO:Received message process
 

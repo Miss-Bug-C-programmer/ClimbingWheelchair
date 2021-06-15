@@ -50,7 +50,7 @@ typedef struct{
 
 	/*Output Signal*/
 	TIM_HandleTypeDef* 		outputPWM; //Output PWM
-	uint32_t			PWM_channel;
+	uint16_t			PWM_channel;
 
 	GPIO_TypeDef* 			BRK_port;
 	uint16_t			BRK_pin; //High: Brake
@@ -83,6 +83,9 @@ void enableMotor(Motor_TypeDef* motor, uint8_t state);
  *  @return Void
  */
 void brakeMotor(Motor_TypeDef* motor, uint8_t state);
+
+void bd25l_Brake(Motor_TypeDef* motor);
+
 
 /** @brief Control motor dir
  *  @params high forward

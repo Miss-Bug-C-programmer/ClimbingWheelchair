@@ -35,6 +35,7 @@
 #include "mpu6050.h"
 #include "pid.h"
 #include "bd25l.h"
+#include "X2_6010S.h"
 
 /* USER CODE END Includes */
 
@@ -113,8 +114,9 @@ extern Motor_TypeDef rearMotor, backMotor; //declare in bd25l.c
 int count = 0;
 int count1 = 0;
 
+uint8_t receive_buf[15];
 
-
+float speed = 0;
 
 /* USER CODE END PV */
 
@@ -191,7 +193,8 @@ int main(void)
   bd25l_Init(&rearMotor);
   bd25l_Init(&backMotor);
   emBrakeMotor(1);
-
+//  hubMotor_Init();
+//  send_HubMotor(10000, 5000);
 //
 //  //********* WHEEL PID *********//
 //  double base_left_ramp_rate = 100;
@@ -268,21 +271,50 @@ int main(void)
   //debug variable
   uint32_t debug_prev_time = HAL_GetTick();
   uint8_t led_status = 0;
-  float speed = 0;
+//  float speed = 0;
   while (1)
   {
-      if (HAL_GetTick() - debug_prev_time >= 500){
-	  if (led_status == 0){
-	      count++;
-	      HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
-	      led_status = 1;
-	  }
-	  else if (led_status == 1){
-	      HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
-	      led_status = 0;
-	  }
-	  debug_prev_time = HAL_GetTick();
+//      if (HAL_GetTick() - debug_prev_time >= 1000){
+//	  if (led_status == 0){
+//	      count++;
+//	      HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
+//	      led_status = 1;
+//	  }
+//	  else if (led_status == 1){
+//	      HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
+//	      led_status = 0;
+//	  }
+////	  if(speed>=100) {
+////	      speed = 0;
+////	      bd25l_DeInit(&rearMotor);
+////	      bd25l_DeInit(&backMotor);
+////	      HAL_Delay(10000);
+////	  }
+//	  debug_prev_time = HAL_GetTick();
+//	  runMotor(&rearMotor, speed, 0);
+//	  runMotor(&backMotor, speed, 0);
+//	  speed+=10;
+//
+////	  brakeMotor(&rearMotor, 1);
+////	  HAL_Delay(5000);
+////	  speed+=10;
+//      }
+
+      if(speed>100){
+	bd25l_Brake(&rearMotor);
+	bd25l_Brake(&backMotor);
+	speed=0;
+	HAL_Delay(5000);
       }
+
+      if (speed<=100){
+	  runMotor(&rearMotor, speed, 0);
+	  runMotor(&backMotor, speed, 0);
+	  speed+=10;
+	  HAL_Delay(1000);
+      }
+
+
 
 
       //Read joystick value
@@ -295,8 +327,7 @@ int main(void)
 //      MOTOR_TIM.Instance->RIGHT_MOTOR_CHANNEL -= 50;
 //      MOTOR_TIM.Instance->LEFT_MOTOR_CHANNEL -= 50;
 //      runMotor(&backMotor, 100, 1);
-      runMotor(&rearMotor, 50, 0);
-      runMotor(&backMotor, 50, 0);
+
 //      runMotor(&backMotor, speed++, 1);
 
     //Loop should execute once every 1 tick
@@ -565,6 +596,12 @@ void calcVelFromJoystick(Joystick_Def *joystick, double *vel_setpoint){
   vel_setpoint[LEFT_INDEX] = (2 * lin_vel - ang_vel * BASE_WIDTH) / (2 * WHEEL_DIA);
   vel_setpoint[RIGHT_INDEX] = (2 * lin_vel + ang_vel * BASE_WIDTH) / (2 * WHEEL_DIA);
 }
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+  send_HubMotor(5000, 5000);
+}
+
 
 /* USER CODE END 4 */
 

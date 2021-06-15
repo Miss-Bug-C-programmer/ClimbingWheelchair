@@ -26,7 +26,7 @@ Motor_TypeDef rearMotor =
 	.EN_pin		= ClimbM_IO_EN1_Pin,
 	.DIR_port	= ClimbM_IO_FR1_GPIO_Port,
 	.DIR_pin	= ClimbM_IO_FR1_Pin,
-	.pole		= 3,
+	.pole		= 4,
 	.ID		= 1,
 };
 
@@ -46,20 +46,25 @@ Motor_TypeDef backMotor =
 	.EN_pin		= ClimbM_IO_EN2_Pin,
 	.DIR_port	= ClimbM_IO_FR2_GPIO_Port,
 	.DIR_pin	= ClimbM_IO_FR2_Pin,
-	.pole		= 3,
+	.pole		= 4,
 	.ID		= 2,
 };
 
 void bd25l_Init(Motor_TypeDef* motor){
-	brakeMotor(motor, 0);
 	enableMotor(motor, 0);
+	brakeMotor(motor, 0);
 }
 
 void bd25l_DeInit(Motor_TypeDef* motor){
-	brakeMotor(motor, 1);
+	brakeMotor(motor, 0);
 	enableMotor(motor, 1);
 }
 
+void bd25l_Brake(Motor_TypeDef* motor){
+	brakeMotor(motor, 1);
+	enableMotor(motor, 0);
+	HAL_TIM_PWM_Stop(motor->outputPWM, motor->PWM_channel);
+}
 
 void enableMotor(Motor_TypeDef* motor, uint8_t state){
 	HAL_GPIO_WritePin(motor->EN_port, motor->EN_pin, state);
@@ -79,14 +84,22 @@ void setMotorDir(Motor_TypeDef* motor, uint8_t dir){
 
 void setMotorSpeed(Motor_TypeDef* motor, float speed){
 
-	uint16_t frequency = 0;
+	float frequency = 0;
 	uint16_t period;
 	uint32_t duty_cycle; //50%
+
 	if (speed > 100) speed = 100.0;
 	//Frequency equation derived from data sheet
-	frequency = (uint16_t)(40 * speed);
-	period = (1e6 / frequency)-1;
+//	frequency = (40.0 * speed);
+	frequency = (uint16_t)((speed - 0.2597)/0.02494);
+	period = (int)(1e6/frequency)+1;
+//	period = (speed) + 1;
 	duty_cycle = period / 2;
+
+	if (speed<4){
+	    period = 1;
+	    duty_cycle = 0;
+	}
 
 	motor->outputPWM->Instance->ARR = period;
 	if(motor->PWM_channel == TIM_CHANNEL_1)
@@ -98,7 +111,12 @@ void setMotorSpeed(Motor_TypeDef* motor, float speed){
 	else if(motor->PWM_channel == TIM_CHANNEL_4)
 	  motor->outputPWM->Instance->CCR4 = duty_cycle;
 
+//	htim8.Instance->CCR4 = duty_cycle;
+//	htim8.Instance->ARR=period;
+//	HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_4);
+
 	HAL_TIM_PWM_Start(motor->outputPWM, motor->PWM_channel);
+	motor->outputPWM->Instance->CNT = 0;
 }
 
 //weak readMotorSpeed(TIM_HandleTypeDef *htim){
@@ -154,6 +172,8 @@ uint8_t readErrorStatus(Motor_TypeDef* motor){
 
 void runMotor(Motor_TypeDef* motor, float speed, uint8_t dir){
 //	if (readErrorStatus(motor)){
+//		enableMotor(motor, 0);
+		bd25l_Init(motor);
 		setMotorDir(motor, dir);
 		setMotorSpeed(motor, speed);
 //	}
