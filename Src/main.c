@@ -190,8 +190,8 @@ int main(void)
 //  HAL_Delay(500);
 
   //Initialize rear and back motor
-  bd25l_Init(&rearMotor);
-  bd25l_Init(&backMotor);
+//  bd25l_Init(&rearMotor);
+//  bd25l_Init(&backMotor);
   emBrakeMotor(1);
 //  hubMotor_Init();
 //  send_HubMotor(10000, 5000);
@@ -274,6 +274,7 @@ int main(void)
 //  float speed = 0;
   while (1)
   {
+	//Code to debug
 //      if (HAL_GetTick() - debug_prev_time >= 1000){
 //	  if (led_status == 0){
 //	      count++;
@@ -284,37 +285,21 @@ int main(void)
 //	      HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
 //	      led_status = 0;
 //	  }
-////	  if(speed>=100) {
-////	      speed = 0;
-////	      bd25l_DeInit(&rearMotor);
-////	      bd25l_DeInit(&backMotor);
-////	      HAL_Delay(10000);
-////	  }
-//	  debug_prev_time = HAL_GetTick();
+//      }
+
+	//Debug BD25L
+//      if(speed>100){
+//	bd25l_Brake(&rearMotor);
+//	bd25l_Brake(&backMotor);
+//	speed=0;
+//	HAL_Delay(5000);
+//      }
+//      if (speed<=100){
 //	  runMotor(&rearMotor, speed, 0);
 //	  runMotor(&backMotor, speed, 0);
 //	  speed+=10;
-//
-////	  brakeMotor(&rearMotor, 1);
-////	  HAL_Delay(5000);
-////	  speed+=10;
+//	  HAL_Delay(1000);
 //      }
-
-      if(speed>100){
-	bd25l_Brake(&rearMotor);
-	bd25l_Brake(&backMotor);
-	speed=0;
-	HAL_Delay(5000);
-      }
-
-      if (speed<=100){
-	  runMotor(&rearMotor, speed, 0);
-	  runMotor(&backMotor, speed, 0);
-	  speed+=10;
-	  HAL_Delay(1000);
-      }
-
-
 
 
       //Read joystick value

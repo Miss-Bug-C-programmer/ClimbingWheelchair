@@ -98,10 +98,6 @@ void Error_Handler(void);
 #define ClimbM_IO_BRK2_GPIO_Port GPIOE
 #define ClimbM_IO_ALM2_Pin GPIO_PIN_8
 #define ClimbM_IO_ALM2_GPIO_Port GPIOE
-#define Climb_TIM1_CH1_Pin GPIO_PIN_9
-#define Climb_TIM1_CH1_GPIO_Port GPIOE
-#define Climb_TIM1_CH2_Pin GPIO_PIN_11
-#define Climb_TIM1_CH2_GPIO_Port GPIOE
 #define ClimbM_IO_FR1_Pin GPIO_PIN_12
 #define ClimbM_IO_FR1_GPIO_Port GPIOE
 #define ClimbM_IO_EN1_Pin GPIO_PIN_13
@@ -142,6 +138,8 @@ void Error_Handler(void);
 #define Wheel_TIM3_CH2_GPIO_Port GPIOC
 #define Climb_TIM8_CH4_Pin GPIO_PIN_9
 #define Climb_TIM8_CH4_GPIO_Port GPIOC
+#define Climb_TIM1_CH2_Pin GPIO_PIN_9
+#define Climb_TIM1_CH2_GPIO_Port GPIOA
 #define Brake_Wheel_Pin GPIO_PIN_3
 #define Brake_Wheel_GPIO_Port GPIOD
 #define LED1_Pin GPIO_PIN_3
