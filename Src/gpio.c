@@ -65,8 +65,8 @@ void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOE, ClimbM_IO_BRK2_Pin|ClimbM_IO_FR1_Pin|ClimbM_IO_EN1_Pin|ClimbM_IO_BRK1_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOD, CUI_SPI2_CS1_Pin|CUI_SPI2_CS2_Pin|HubM_IO_ALM_Pin|HubM_IO_SON_Pin
-                          |HubM_IO_NOT_Pin|HubM_IO_POT_Pin|Brake_Wheel_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOD, CUI_SPI2_CS1_Pin|CUI_SPI2_CS2_Pin|HubM_IO_SON_Pin|HubM_IO_NOT_Pin
+                          |HubM_IO_POT_Pin|Brake_Wheel_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pins : PEPin PEPin PEPin PEPin
                            PEPin PEPin PEPin PEPin
@@ -117,13 +117,19 @@ void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PDPin PDPin PDPin PDPin
-                           PDPin PDPin PDPin */
-  GPIO_InitStruct.Pin = CUI_SPI2_CS1_Pin|CUI_SPI2_CS2_Pin|HubM_IO_ALM_Pin|HubM_IO_SON_Pin
-                          |HubM_IO_NOT_Pin|HubM_IO_POT_Pin|Brake_Wheel_Pin;
+                           PDPin PDPin */
+  GPIO_InitStruct.Pin = CUI_SPI2_CS1_Pin|CUI_SPI2_CS2_Pin|HubM_IO_SON_Pin|HubM_IO_NOT_Pin
+                          |HubM_IO_POT_Pin|Brake_Wheel_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PtPin */
+  GPIO_InitStruct.Pin = HubM_IO_ALM_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(HubM_IO_ALM_GPIO_Port, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
   HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);

@@ -107,16 +107,22 @@ double angular_output = 0;
 PID_Struct left_pid, right_pid, left_ramp_pid, right_ramp_pid, left_d_ramp_pid, right_d_ramp_pid;
 double p = 450.0, i = 500.0, d = 0.0, f = 370, max_i_output = 30;
 
-//Lifting mechanism
-MPU6050_t MPU6050;
+//Lifting Mechanism
+//Climbing motor
 extern Motor_TypeDef rearMotor, backMotor; //declare in bd25l.c
+float speed[2] = {0}; //range: 0 - 100
 
-int count = 0;
-int count1 = 0;
-
+//Hub Motor UART receive
 uint8_t receive_buf[15];
+int32_t hub_encoder_1 = 0;
+int32_t hub_encoder_2 = 0;
 
-float speed = 0;
+//Switches
+uint8_t rearLS1 = 0, rearLS2 = 0;
+uint8_t backLS1 = 0, backLS2 = 0;
+
+//Sensor
+MPU6050_t MPU6050;
 
 /* USER CODE END PV */
 
@@ -192,9 +198,11 @@ int main(void)
   //Initialize rear and back motor
 //  bd25l_Init(&rearMotor);
 //  bd25l_Init(&backMotor);
-  emBrakeMotor(1);
-//  hubMotor_Init();
-//  send_HubMotor(10000, 5000);
+//  emBrakeMotor(1);
+
+    //Initialize hub motor
+  hubMotor_Init();
+  send_HubMotor(200, 200);
 //
 //  //********* WHEEL PID *********//
 //  double base_left_ramp_rate = 100;
@@ -302,6 +310,12 @@ int main(void)
 //      }
 
 
+	//Debug Limit switch
+      rearLS1 = HAL_GPIO_ReadPin(LimitSW1_GPIO_Port, LimitSW1_Pin);
+      rearLS2 = HAL_GPIO_ReadPin(LimitSW2_GPIO_Port, LimitSW2_Pin);
+      backLS1 = HAL_GPIO_ReadPin(LimitSW3_GPIO_Port, LimitSW3_Pin);
+      backLS2 = HAL_GPIO_ReadPin(LimitSW4_GPIO_Port, LimitSW4_Pin);
+      HAL_Delay(500);
       //Read joystick value
 //      ADC_DataRequest();.
 
@@ -584,7 +598,21 @@ void calcVelFromJoystick(Joystick_Def *joystick, double *vel_setpoint){
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-  send_HubMotor(5000, 5000);
+  //Checksum, make sure that response is correct
+  uint16_t sum = (uint16_t)receive_buf[0] + (uint16_t)receive_buf[1] + (uint16_t)receive_buf[2] + (uint16_t)receive_buf[3]
+  		+ (uint16_t)receive_buf[4] + (uint16_t)receive_buf[5] + (uint16_t)receive_buf[6]
+  		+ (uint16_t)receive_buf[7] + (uint16_t)receive_buf[8] + (uint16_t)receive_buf[9]
+  		+ (uint16_t)receive_buf[10] + (uint16_t)receive_buf[11] + (uint16_t)receive_buf[12]
+  		+ (uint16_t)receive_buf[13];
+    if ((uint8_t)sum == receive_buf[14]){
+	if (receive_buf[0] == 0xAA && receive_buf[1] == 0xA4){
+	    hub_encoder_1 = 	(receive_buf[9] << 24) | (receive_buf[8] << 16) |
+				(receive_buf[7] << 8)| (receive_buf[6] );
+	    hub_encoder_2 = 	(receive_buf[13] << 24) | (receive_buf[12] << 16) |
+	    				(receive_buf[11] << 8)| (receive_buf[10] );
+	}
+    }
+  send_HubMotor(200, 200);
 }
 
 

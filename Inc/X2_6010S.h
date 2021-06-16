@@ -27,9 +27,9 @@ extern UART_HandleTypeDef huart3;
 extern DMA_HandleTypeDef hdma_usart3_rx;
 
 typedef struct{
-	uint8_t send_buf[15];
-	uint8_t receive_buf[15];
-}Motor_ConfigTypeDef;
+  int32_t encoder1;
+  int32_t encoder2;
+}Encoder_Feedback;
 
 enum MOTOR_ADDRESS_ENUM{
 	MOTOR_1 = 0xA1,
@@ -65,8 +65,15 @@ void hubMotor_Init();
   * @param None
   * @retval None
   */
-void send_HubMotor(uint16_t motor1_speed, uint16_t motor2_speed);
+void send_HubMotor(int16_t motor1_speed, int16_t motor2_speed);
 
 //TODO:Received message process
+/**
+  * @brief receive speed command to Hub motor
+  * Need add HAL_DMA_RECEIVE_CPT_CALLBACK to receive message
+  * @param None
+  * @retval None
+  */
+//Encoder_Feedback receiveHubMotor(uint8_t receive_buf[]);
 
 #endif

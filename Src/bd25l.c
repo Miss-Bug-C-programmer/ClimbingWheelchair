@@ -63,7 +63,7 @@ void bd25l_DeInit(Motor_TypeDef* motor){
 void bd25l_Brake(Motor_TypeDef* motor){
 	brakeMotor(motor, 1);
 	enableMotor(motor, 0);
-	HAL_TIM_PWM_Stop(motor->outputPWM, motor->PWM_channel);
+
 }
 
 void enableMotor(Motor_TypeDef* motor, uint8_t state){
@@ -99,23 +99,23 @@ void setMotorSpeed(Motor_TypeDef* motor, float speed){
 	if (speed<4){
 	    period = 1;
 	    duty_cycle = 0;
+	    HAL_TIM_PWM_Stop(motor->outputPWM, motor->PWM_channel);
 	}
 
-	motor->outputPWM->Instance->ARR = period;
-	if(motor->PWM_channel == TIM_CHANNEL_1)
-	  motor->outputPWM->Instance->CCR1 = duty_cycle;
-	else if(motor->PWM_channel == TIM_CHANNEL_2)
-		  motor->outputPWM->Instance->CCR2 = duty_cycle;
-	else if(motor->PWM_channel == TIM_CHANNEL_3)
-		  motor->outputPWM->Instance->CCR3 = duty_cycle;
-	else if(motor->PWM_channel == TIM_CHANNEL_4)
-	  motor->outputPWM->Instance->CCR4 = duty_cycle;
+	else{
+	    motor->outputPWM->Instance->ARR = period;
+	    if(motor->PWM_channel == TIM_CHANNEL_1)
+	      motor->outputPWM->Instance->CCR1 = duty_cycle;
+	    else if(motor->PWM_channel == TIM_CHANNEL_2)
+		      motor->outputPWM->Instance->CCR2 = duty_cycle;
+	    else if(motor->PWM_channel == TIM_CHANNEL_3)
+		      motor->outputPWM->Instance->CCR3 = duty_cycle;
+	    else if(motor->PWM_channel == TIM_CHANNEL_4)
+	      motor->outputPWM->Instance->CCR4 = duty_cycle;
 
-//	htim8.Instance->CCR4 = duty_cycle;
-//	htim8.Instance->ARR=period;
-//	HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_4);
+	    HAL_TIM_PWM_Start(motor->outputPWM, motor->PWM_channel);
+	}
 
-	HAL_TIM_PWM_Start(motor->outputPWM, motor->PWM_channel);
 	motor->outputPWM->Instance->CNT = 0;
 }
 
