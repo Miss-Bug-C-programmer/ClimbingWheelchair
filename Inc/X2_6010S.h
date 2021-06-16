@@ -39,10 +39,10 @@ enum MOTOR_ADDRESS_ENUM{
 };
 
 typedef enum{
-	MOTOR_ENABLE = 0x01,
-	MOTOR_BRAKE= 0x02,
-	MOTOR_DISABLE = 0x03,
-	MOTOR_CLR_ALARM = 0x04
+	MOTOR_ENABLE = 0x00,
+	MOTOR_BRAKE= 0x01,
+	MOTOR_DISABLE = 0x02,
+	MOTOR_CLR_ALARM = 0x03
 }Motor_Command;
 
 typedef enum{
@@ -62,7 +62,7 @@ void hubMotor_Init();
 /**
   * @brief send speed command to Hub motor
   * Need add HAL_DMA_RECEIVE_CPT_CALLBACK to receive message
-  * @param None
+  * @param -32000 to 32000
   * @retval None
   */
 void send_HubMotor(int16_t motor1_speed, int16_t motor2_speed);

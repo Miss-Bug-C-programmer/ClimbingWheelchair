@@ -604,15 +604,18 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
   		+ (uint16_t)receive_buf[7] + (uint16_t)receive_buf[8] + (uint16_t)receive_buf[9]
   		+ (uint16_t)receive_buf[10] + (uint16_t)receive_buf[11] + (uint16_t)receive_buf[12]
   		+ (uint16_t)receive_buf[13];
-    if ((uint8_t)sum == receive_buf[14]){
-	if (receive_buf[0] == 0xAA && receive_buf[1] == 0xA4){
-	    hub_encoder_1 = 	(receive_buf[9] << 24) | (receive_buf[8] << 16) |
-				(receive_buf[7] << 8)| (receive_buf[6] );
-	    hub_encoder_2 = 	(receive_buf[13] << 24) | (receive_buf[12] << 16) |
-	    				(receive_buf[11] << 8)| (receive_buf[10] );
-	}
-    }
-  send_HubMotor(200, 200);
+  if ((uint8_t)sum == receive_buf[14]){
+      if (receive_buf[0] == 0xAA && receive_buf[1] == 0xA4){
+	  hub_encoder_1 = 	(receive_buf[9] << 24) | (receive_buf[8] << 16) |
+			      (receive_buf[7] << 8)| (receive_buf[6] );
+	  hub_encoder_2 = 	(receive_buf[13] << 24) | (receive_buf[12] << 16) |
+				      (receive_buf[11] << 8)| (receive_buf[10] );
+      }
+  }
+  HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+
+  HAL_Delay(1000);
+  send_HubMotor(10000, 10000);
 }
 
 
