@@ -98,6 +98,24 @@ uint16_t e_stop = 1; //Store the status of emergency stop button
 uint8_t braked = 1; //Stores the brake status of left and right motors
 uint32_t brake_timer = 0;
 double engage_brakes_timeout = 5; //5s
+// wheelchair
+const int JoystickCenterX = 16610;
+const int JoystickCenterY = 16520;
+const int JoystickMagnitudeMax = 13000;
+const int JoystickMagnitudeMin = 2500;
+const int JoyPosBufferSize = 5;
+int joyPosBuffer[2][5] = {0};
+int joy_pos_buffer_cnt = 0;
+int wheelchr_stable_cnt = 0;
+const float JoyForwardAngle = 1.57;
+const float JoyForwardAngleDeadzone = 0.1;
+const float LinearSpeedLevel[3] = {200.0f, 300.0f, 400.0f};
+const float AngularSpeedLevel[3] = {100.0f, 150.0f, 200.0f};
+int speed_level = 1;
+//bool start_from_stationary = true;
+//WheelSpeed wheelchr_wheelspeed_cur;
+//WheelSpeed wheelchr_wheelspeed_pre;
+
 
 //Velocity stuff
 double target_heading, curr_heading;
@@ -120,6 +138,9 @@ int32_t hub_encoder_2 = 0;
 //Switches
 uint8_t rearLS1 = 0, rearLS2 = 0;
 uint8_t backLS1 = 0, backLS2 = 0;
+
+//Tactile Switches
+uint8_t button1 = 0, button2 = 0, button3 = 0;
 
 //Sensor
 MPU6050_t MPU6050;
@@ -179,96 +200,30 @@ int main(void)
   MX_TIM8_Init();
   /* USER CODE BEGIN 2 */
   //Initialize hardware communication
-//  ADC_Init();
-//    HAL_Delay(500);
-//  ADC_DataRequest();
-//  HAL_Delay(500);
+  ADC_Init();
+  ADC_DataRequest();
 ////  encoder_Init();
 ////  DWT_Init();
 //  while(MPU6050_Init(&hi2c1)==1);
+    HAL_Delay(500);
 
 //  //Start base wheel pwm pin
-//  HAL_TIM_Base_Start(&MOTOR_TIM);
-//  HAL_TIM_PWM_Start(&MOTOR_TIM, TIM_CHANNEL_1);
-//  HAL_TIM_PWM_Start(&MOTOR_TIM, TIM_CHANNEL_2);
-//  MOTOR_TIM.Instance->RIGHT_MOTOR_CHANNEL = 1500;
-//  MOTOR_TIM.Instance->LEFT_MOTOR_CHANNEL = 1500;
-//  HAL_Delay(500);
+  HAL_TIM_Base_Start(&MOTOR_TIM);
+  HAL_TIM_PWM_Start(&MOTOR_TIM, TIM_CHANNEL_1);
+  HAL_TIM_PWM_Start(&MOTOR_TIM, TIM_CHANNEL_2);
+  MOTOR_TIM.Instance->RIGHT_MOTOR_CHANNEL = 1500;
+  MOTOR_TIM.Instance->LEFT_MOTOR_CHANNEL = 1500;
+  HAL_Delay(500);
 
   //Initialize rear and back motor
-//  bd25l_Init(&rearMotor);
-//  bd25l_Init(&backMotor);
-//  emBrakeMotor(1);
+  bd25l_Init(&rearMotor);
+  bd25l_Init(&backMotor);
+  runMotor(&rearMotor, speed, 0);
+  runMotor(&backMotor, speed, 0);
+  emBrakeMotor(1);
 
-    //Initialize hub motor
+  //Initialize hub motor
   hubMotor_Init();
-  send_HubMotor(200, 200);
-//
-//  //********* WHEEL PID *********//
-//  double base_left_ramp_rate = 100;
-//  double base_right_ramp_rate = 100;
-//  double base_left_d_ramp_rate = 200;
-//  double base_right_d_ramp_rate = 100;
-//
-//  //Setup right wheel PID
-//  PID_Init(&right_pid);
-//  PID_setPIDF(&right_pid, p, i, d, f);
-//  PID_setMaxIOutput(&right_pid, max_i_output);
-//  PID_setOutputLimits(&right_pid, -500, 500);
-//  PID_setFrequency(&right_pid, 1000);
-//  PID_setOutputRampRate(&right_pid, base_right_ramp_rate);
-//  PID_setOutputDescentRate(&right_pid, -base_right_d_ramp_rate);
-//
-//  //Setup left wheel PID
-//  PID_Init(&left_pid);
-//  PID_setPIDF(&left_pid, p, i, d, f);
-//  PID_setMaxIOutput(&left_pid, max_i_output);
-//  PID_setOutputLimits(&left_pid, -500, 500);
-//  PID_setFrequency(&left_pid, 1000);
-//  PID_setOutputRampRate(&left_pid, base_left_ramp_rate);
-//  PID_setOutputDescentRate(&left_pid, -base_left_d_ramp_rate);
-//
-//  //********* WHEEL ACCEL RAMP PID *********//
-//  double ramp_p = 300;
-//  double ramp_d = 0;
-//  double ramp_i = 0;
-//  double max_ramp_rate_inc = 400;
-//  //Setup right wheel ramp PID
-//  PID_Init(&right_ramp_pid);
-//  PID_setPIDF(&right_ramp_pid, ramp_p, ramp_i, ramp_d, 0);
-//  PID_setOutputLimits(&right_ramp_pid, 0, 400);
-//  PID_setOutputRampRate(&right_ramp_pid, max_ramp_rate_inc);
-//  PID_setOutputDescentRate(&right_ramp_pid, -max_ramp_rate_inc);
-//  PID_setFrequency(&right_ramp_pid, 1000);
-//
-//  //Setup left wheel ramp PID
-//  PID_Init(&left_ramp_pid);
-//  PID_setPIDF(&left_ramp_pid, ramp_p, ramp_i, ramp_d, 0);
-//  PID_setOutputLimits(&left_ramp_pid, 0, 400);
-//  PID_setOutputRampRate(&left_ramp_pid, max_ramp_rate_inc);
-//  PID_setOutputDescentRate(&left_ramp_pid, -max_ramp_rate_inc);
-//  PID_setFrequency(&left_ramp_pid, 1000);
-//
-//  //********* WHEEL DECEL RAMP PID *********//
-//  double d_ramp_p = 600;
-//  double max_d_ramp_rate_inc = 300;
-//  double max_d_increase = 350;
-//  //Setup right wheel d ramp PID
-//  PID_Init(&right_d_ramp_pid);
-//  PID_setPIDF(&right_d_ramp_pid, d_ramp_p, 0, 0, 0);
-//  PID_setOutputLimits(&right_d_ramp_pid, 0, max_d_increase);
-//  PID_setOutputRampRate(&right_d_ramp_pid, max_d_ramp_rate_inc);
-//  PID_setOutputDescentRate(&right_d_ramp_pid, -max_d_ramp_rate_inc);
-//  PID_setFrequency(&right_d_ramp_pid, 1000);
-//
-//  //Setup left wheel d ramp PID
-//  PID_Init(&left_d_ramp_pid);
-//  PID_setPIDF(&left_d_ramp_pid, d_ramp_p, 0, 0, 0);
-//  PID_setOutputLimits(&left_d_ramp_pid, 0, max_d_increase);
-//  PID_setOutputRampRate(&left_d_ramp_pid, max_d_ramp_rate_inc);
-//  PID_setOutputDescentRate(&left_d_ramp_pid, -max_d_ramp_rate_inc);
-//  PID_setFrequency(&left_d_ramp_pid, 1000);
-
 
   /* USER CODE END 2 */
 
@@ -311,11 +266,19 @@ int main(void)
 
 
 	//Debug Limit switch
-      rearLS1 = HAL_GPIO_ReadPin(LimitSW1_GPIO_Port, LimitSW1_Pin);
-      rearLS2 = HAL_GPIO_ReadPin(LimitSW2_GPIO_Port, LimitSW2_Pin);
-      backLS1 = HAL_GPIO_ReadPin(LimitSW3_GPIO_Port, LimitSW3_Pin);
-      backLS2 = HAL_GPIO_ReadPin(LimitSW4_GPIO_Port, LimitSW4_Pin);
+//      rearLS1 = HAL_GPIO_ReadPin(LimitSW1_GPIO_Port, LimitSW1_Pin);
+//      rearLS2 = HAL_GPIO_ReadPin(LimitSW2_GPIO_Port, LimitSW2_Pin);
+//      backLS1 = HAL_GPIO_ReadPin(LimitSW3_GPIO_Port, LimitSW3_Pin);
+//      backLS2 = HAL_GPIO_ReadPin(LimitSW4_GPIO_Port, LimitSW4_Pin);
+//      HAL_Delay(500);
+
+
+      //Debug tactile switch Button
+      button1 = HAL_GPIO_ReadPin(Button1_GPIO_Port, Button1_Pin);
+      button2 = HAL_GPIO_ReadPin(Button2_GPIO_Port, Button2_Pin);
+      button3 = HAL_GPIO_ReadPin(Button3_GPIO_Port, Button3_Pin);
       HAL_Delay(500);
+
       //Read joystick value
 //      ADC_DataRequest();.
 
@@ -332,126 +295,13 @@ int main(void)
     //Loop should execute once every 1 tick
     if(HAL_GetTick() - prev_time >= 1)
     {
-
+//	send_HubMotor(-10000, 10000);
 
 //	encoderRead(encoder);
 //	calcVelFromEncoder(encoder, velocity);
 //	e_stop = HAL_GPIO_ReadPin(Brake_Wheel_GPIO_Port, Brake_Wheel_Pin);
 //
-//	//Need a way to calculate velocity
-//	calcVelFromJoystick(&joystick, setpoint_vel);
-//	 //Heading is synonymous to radius of curvature for given velocity pair
-//	double target_angular = (setpoint_vel[RIGHT_INDEX] - setpoint_vel[LEFT_INDEX]);
-//	double curr_angular = (velocity[RIGHT_INDEX] - velocity[LEFT_INDEX]);
-//	double target_linear = (setpoint_vel[RIGHT_INDEX] + setpoint_vel[LEFT_INDEX]) / 2.0;
-//	double curr_linear = (velocity[RIGHT_INDEX] + velocity[LEFT_INDEX]) / 2.0;
-//	target_heading = atan2(target_linear, target_angular);
-//	curr_heading = atan2(curr_linear, curr_angular);
 //
-//	//This case might happen when curr_heading is M_PI and target_heading is -M_PI
-//	//In this case, both values should be equal signs
-//	if(target_heading == M_PI || curr_heading == M_PI)
-//	{
-//	  curr_heading = fabs(curr_heading);
-//	  target_heading = fabs(target_heading);
-//	}
-//
-//	//When angular_output negative, right wheel is slower
-//	//When angular_output positive, left wheel is slower
-//	angular_output = (target_heading - curr_heading) / M_PI;
-//	int sign = angular_output / fabs(angular_output);
-//
-//	//Sigmoid curve to make angular_output more sensitive in mid range (~0.5)
-//	//~0.5 is max value that occurs when going from pure rotation to pure forward
-//	angular_output = 1/(1 + exp(-15*(fabs(angular_output) - 0.35))) * sign;
-//
-//	//Small velocities cause large changes to heading due to noise
-//	//Set difference to 0 if below threshold, no correction
-//	if(fabs(velocity[LEFT_INDEX]) < 0.1 && fabs(velocity[RIGHT_INDEX]) < 0.1)
-//		angular_output = 0;
-//
-//	//Amount of penalty to setpoint depends on how far away from the target heading
-//	//Scale may increase over 100%, but does not matter as the heading approaches target heading
-//	//scale will approach 100%
-//	if(setpoint_vel[LEFT_INDEX] != 0.0 || setpoint_vel[RIGHT_INDEX] != 0.0)
-//	{
-//		setpoint_vel[LEFT_INDEX] *= (1 + angular_output);
-//		setpoint_vel[RIGHT_INDEX] *= (1 - angular_output);
-//	}
-//
-//	 //If e stop engaged, override setpoints to 0
-//	if(e_stop == 1)
-//	{
-//		setpoint_vel[LEFT_INDEX] = 0;
-//		setpoint_vel[RIGHT_INDEX] = 0;
-//	}
-//	//If data is old, set setpoint to 0
-//	else if((HAL_GetTick() - prev_adc_time) > FREQUENCY * 0.2)
-//	{
-//		setpoint_vel[LEFT_INDEX] = 0;
-//		setpoint_vel[RIGHT_INDEX] = 0;
-//	}
-//
-//	//TODO:understand how the brake works
-//	//Unbrake motors if there is command, brake otherwise
-//	setBrakes();
-//
-//	//Ensure there is a commanded velocity, otherwise reset PID
-//	if(fabs(setpoint_vel[LEFT_INDEX]) == 0 && fabs(velocity[LEFT_INDEX]) < 0.1)
-//	{
-//	  motor_command[LEFT_INDEX] = 0;
-//	  PID_reset(&left_pid);
-//	}
-//	else if(!braked)
-//	{
-//	    //ACCELERATE
-//	    {
-//		    double new_left_ramp = base_left_ramp_rate + PID_getOutput(&left_ramp_pid, fabs(velocity[LEFT_INDEX]), fabs(setpoint_vel[LEFT_INDEX]));
-//		    PID_setOutputRampRate(&left_pid, new_left_ramp);
-//	    }
-//
-//	    //DECELERATE
-//	    {
-//		    double new_left_ramp = base_left_d_ramp_rate + PID_getOutput(&left_d_ramp_pid, fabs(setpoint_vel[LEFT_INDEX]), fabs(velocity[LEFT_INDEX]));
-//		    PID_setOutputDescentRate(&left_pid, -new_left_ramp);
-//	    }
-//
-//	    motor_command[LEFT_INDEX] = PID_getOutput(&left_pid, velocity[LEFT_INDEX], setpoint_vel[LEFT_INDEX]);
-//	}
-//	//Ensure there is a commanded velocity, otherwise reset PID
-//	if(fabs(setpoint_vel[RIGHT_INDEX]) == 0 && fabs(velocity[RIGHT_INDEX]) < 0.1)
-//	{
-//		motor_command[RIGHT_INDEX] = 0;
-//		PID_reset(&right_pid);
-//	}
-//
-//	//Ensure there is a commanded velocity, otherwise reset PID
-//	if(fabs(setpoint_vel[RIGHT_INDEX]) == 0 && fabs(velocity[RIGHT_INDEX]) < 0.1)
-//	{
-//		motor_command[RIGHT_INDEX] = 0;
-//		PID_reset(&right_pid);
-//	}
-//
-//	else if(!braked)
-//	{
-//
-//		//ACCELERATE
-//		{
-//			double new_right_ramp = base_right_ramp_rate + PID_getOutput(&right_ramp_pid, fabs(velocity[RIGHT_INDEX]), fabs(setpoint_vel[RIGHT_INDEX]));
-//			PID_setOutputRampRate(&right_pid, new_right_ramp);
-//		}
-//
-//		//DECELERATE
-//		{
-//			double new_right_ramp = base_right_d_ramp_rate + PID_getOutput(&right_d_ramp_pid, fabs(setpoint_vel[RIGHT_INDEX]), fabs(velocity[RIGHT_INDEX]));
-//			PID_setOutputDescentRate(&right_pid, -new_right_ramp);
-//		}
-//
-//		motor_command[RIGHT_INDEX] = PID_getOutput(&right_pid, velocity[RIGHT_INDEX], setpoint_vel[RIGHT_INDEX]);
-//	}
-//	//Send PID commands to motor
-//	MOTOR_TIM.Instance->RIGHT_MOTOR_CHANNEL = motor_command[LEFT_INDEX] + 1500;
-//	MOTOR_TIM.Instance->LEFT_MOTOR_CHANNEL = motor_command[RIGHT_INDEX] + 1500;
 //
     }
     prev_time = HAL_GetTick();
@@ -605,17 +455,21 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
   		+ (uint16_t)receive_buf[10] + (uint16_t)receive_buf[11] + (uint16_t)receive_buf[12]
   		+ (uint16_t)receive_buf[13];
   if ((uint8_t)sum == receive_buf[14]){
-      if (receive_buf[0] == 0xAA && receive_buf[1] == 0xA4){
-	  hub_encoder_1 = 	(receive_buf[9] << 24) | (receive_buf[8] << 16) |
-			      (receive_buf[7] << 8)| (receive_buf[6] );
-	  hub_encoder_2 = 	(receive_buf[13] << 24) | (receive_buf[12] << 16) |
-				      (receive_buf[11] << 8)| (receive_buf[10] );
+//      && receive_buf[4] == 0x00
+      if (receive_buf[0] == 0xAA && receive_buf[1] == 0xA4 ){
+	  hub_encoder_1 = 	(receive_buf[9] << 24) + (receive_buf[8] << 16) +
+			      (receive_buf[7] << 8)+ (receive_buf[6] );
+	  hub_encoder_2 = 	(receive_buf[13] << 24) + (receive_buf[12] << 16) +
+				      (receive_buf[11] << 8) + (receive_buf[10] );
+	  hub_encoder_1 %= 4096;
+	  hub_encoder_2 %= 4096;
       }
   }
   HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+//  uint32_t uart_prev_time = HAL_GetTick();
+//  while(HAL_GetTick() - uart_prev_time < 100);
+//  HAL_Delay(250);
 
-  HAL_Delay(1000);
-  send_HubMotor(10000, 10000);
 }
 
 

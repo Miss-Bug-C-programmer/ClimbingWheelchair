@@ -68,12 +68,16 @@ void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOD, CUI_SPI2_CS1_Pin|CUI_SPI2_CS2_Pin|HubM_IO_SON_Pin|HubM_IO_NOT_Pin
                           |HubM_IO_POT_Pin|Brake_Wheel_Pin, GPIO_PIN_RESET);
 
+  /*Configure GPIO pins : PEPin PEPin PEPin */
+  GPIO_InitStruct.Pin = Button3_Pin|Button1_Pin|Button2_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
+
   /*Configure GPIO pins : PEPin PEPin PEPin PEPin
-                           PEPin PEPin PEPin PEPin
-                           PEPin */
-  GPIO_InitStruct.Pin = Button3_Pin|LimitSW1_Pin|LimitSW2_Pin|LimitSW3_Pin
-                          |LimitSW4_Pin|ClimbM_IO_ALM2_Pin|ClimbM_IO_ALM1_Pin|Button1_Pin
-                          |Button2_Pin;
+                           PEPin PEPin */
+  GPIO_InitStruct.Pin = LimitSW1_Pin|LimitSW2_Pin|LimitSW3_Pin|LimitSW4_Pin
+                          |ClimbM_IO_ALM2_Pin|ClimbM_IO_ALM1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);

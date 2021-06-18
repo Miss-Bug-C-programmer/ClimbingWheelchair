@@ -171,15 +171,8 @@ uint8_t readErrorStatus(Motor_TypeDef* motor){
 }
 
 void runMotor(Motor_TypeDef* motor, float speed, uint8_t dir){
-//	if (readErrorStatus(motor)){
-//		enableMotor(motor, 0);
-		bd25l_Init(motor);
-		setMotorDir(motor, dir);
-		setMotorSpeed(motor, speed);
-//	}
-//	else{
-//		brakeMotor(motor, 1);
-//	}
+    setMotorDir(motor, dir);
+    setMotorSpeed(motor, speed);
 
 }
 
