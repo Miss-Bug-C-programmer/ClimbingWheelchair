@@ -33,7 +33,6 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
@@ -163,6 +162,9 @@ void Error_Handler(void);
 
 #define LEFT_INDEX 		0
 #define RIGHT_INDEX 		1
+#define FRONT_INDEX		0
+#define BACK_INDEX		1
+
 #define WHEEL_DIA		0.25
 #define WHEEL_ACC_LIMIT		10.0
 #define BASE_WIDTH 		0.5

@@ -90,10 +90,8 @@ void setMotorSpeed(Motor_TypeDef* motor, float speed){
 
 	if (speed > 100) speed = 100.0;
 	//Frequency equation derived from data sheet
-//	frequency = (40.0 * speed);
 	frequency = (uint16_t)((speed - 0.2597)/0.02494);
 	period = (int)(1e6/frequency)+1;
-//	period = (speed) + 1;
 	duty_cycle = period / 2;
 
 	if (speed<4){
@@ -170,8 +168,12 @@ uint8_t readErrorStatus(Motor_TypeDef* motor){
 	else return 1;
 }
 
-void runMotor(Motor_TypeDef* motor, float speed, uint8_t dir){
-    setMotorDir(motor, dir);
+void runMotor(Motor_TypeDef* motor, float speed){
+    if (fabs(speed)/speed < 0)
+      setMotorDir(motor, 1);
+    else
+      setMotorDir(motor, 0);
+
     setMotorSpeed(motor, speed);
 
 }

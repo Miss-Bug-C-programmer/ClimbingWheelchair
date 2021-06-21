@@ -39,6 +39,7 @@
 #include "gpio.h"
 #include "main.h"
 #include "tim.h"
+#include <math.h>
 
 typedef struct{
 	/*Input Signal*/
@@ -113,11 +114,10 @@ uint8_t readErrorStatus(Motor_TypeDef* motor);
 
 /** @brief Run motor
  *  @params motor entity
- *  	dir high forward,low reverse
- *
+ *  	speed range from -100 to 100
  *  @return
  */
-void runMotor(Motor_TypeDef* motor, float speed, uint8_t dir);
+void runMotor(Motor_TypeDef* motor, float speed);
 
 /** @brief Engage and disengage EM brake
  *  @params motor entity, high stop motor immediately

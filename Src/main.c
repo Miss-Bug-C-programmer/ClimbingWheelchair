@@ -28,10 +28,11 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "adc.h"
-#include "encoder.h"
 #include <math.h>
 #include <stdio.h>
+#include "adc.h"
+#include "encoder.h"
+#include "button.h"
 #include "mpu6050.h"
 #include "pid.h"
 #include "bd25l.h"
@@ -89,16 +90,7 @@ static Joystick_Def joystick = {.x = 0, .y =0.0,
 				.MAX_Y = 27000, .MID_Y = 16000, .MIN_Y = 6800};
 
 
-//Encoder, Base wheel control
-uint16_t encoder[2];
-double velocity[2];
-double setpoint_vel[2];
-int16_t motor_command[2] = {0};
-uint16_t e_stop = 1; //Store the status of emergency stop button
-uint8_t braked = 1; //Stores the brake status of left and right motors
-uint32_t brake_timer = 0;
-double engage_brakes_timeout = 5; //5s
-// wheelchair
+//Wheelchair Base wheel control
 const int JoystickCenterX = 16610;
 const int JoystickCenterY = 16520;
 const int JoystickMagnitudeMax = 13000;
@@ -117,13 +109,6 @@ int speed_level = 1;
 //WheelSpeed wheelchr_wheelspeed_pre;
 
 
-//Velocity stuff
-double target_heading, curr_heading;
-double angular_output = 0;
-
-//PIDstruct and their tunings. There's one PID controller for each motor
-PID_Struct left_pid, right_pid, left_ramp_pid, right_ramp_pid, left_d_ramp_pid, right_d_ramp_pid;
-double p = 450.0, i = 500.0, d = 0.0, f = 370, max_i_output = 30;
 
 //Lifting Mechanism
 //Climbing motor
@@ -140,7 +125,18 @@ uint8_t rearLS1 = 0, rearLS2 = 0;
 uint8_t backLS1 = 0, backLS2 = 0;
 
 //Tactile Switches
-uint8_t button1 = 0, button2 = 0, button3 = 0;
+Button_TypeDef button1 = {
+    .gpioPort = Button1_GPIO_Port,
+    .gpioPin = Button1_Pin
+};
+Button_TypeDef button2 = {
+    .gpioPort = Button2_GPIO_Port,
+    .gpioPin = Button2_Pin
+};
+Button_TypeDef button3 = {
+    .gpioPort = Button3_GPIO_Port,
+    .gpioPin = Button3_Pin
+};
 
 //Sensor
 MPU6050_t MPU6050;
@@ -218,12 +214,14 @@ int main(void)
   //Initialize rear and back motor
   bd25l_Init(&rearMotor);
   bd25l_Init(&backMotor);
-  runMotor(&rearMotor, speed, 0);
-  runMotor(&backMotor, speed, 0);
+  runMotor(&rearMotor, 0);
+  runMotor(&backMotor, 0);
   emBrakeMotor(1);
 
   //Initialize hub motor
   hubMotor_Init();
+
+  //Initalize button state
 
   /* USER CODE END 2 */
 
@@ -237,7 +235,7 @@ int main(void)
 //  float speed = 0;
   while (1)
   {
-	//Code to debug
+	//Code to debug with blinking LED
 //      if (HAL_GetTick() - debug_prev_time >= 1000){
 //	  if (led_status == 0){
 //	      count++;
@@ -264,20 +262,12 @@ int main(void)
 //	  HAL_Delay(1000);
 //      }
 
-
 	//Debug Limit switch
 //      rearLS1 = HAL_GPIO_ReadPin(LimitSW1_GPIO_Port, LimitSW1_Pin);
 //      rearLS2 = HAL_GPIO_ReadPin(LimitSW2_GPIO_Port, LimitSW2_Pin);
 //      backLS1 = HAL_GPIO_ReadPin(LimitSW3_GPIO_Port, LimitSW3_Pin);
 //      backLS2 = HAL_GPIO_ReadPin(LimitSW4_GPIO_Port, LimitSW4_Pin);
 //      HAL_Delay(500);
-
-
-      //Debug tactile switch Button
-      button1 = HAL_GPIO_ReadPin(Button1_GPIO_Port, Button1_Pin);
-      button2 = HAL_GPIO_ReadPin(Button2_GPIO_Port, Button2_Pin);
-      button3 = HAL_GPIO_ReadPin(Button3_GPIO_Port, Button3_Pin);
-      HAL_Delay(500);
 
       //Read joystick value
 //      ADC_DataRequest();.
@@ -295,14 +285,28 @@ int main(void)
     //Loop should execute once every 1 tick
     if(HAL_GetTick() - prev_time >= 1)
     {
-//	send_HubMotor(-10000, 10000);
+	GPIO_Digital_Filtered_Input(&button1, 30);
+	GPIO_Digital_Filtered_Input(&button2, 30);
+	GPIO_Digital_Filtered_Input(&button3, 30);
 
-//	encoderRead(encoder);
-//	calcVelFromEncoder(encoder, velocity);
-//	e_stop = HAL_GPIO_ReadPin(Brake_Wheel_GPIO_Port, Brake_Wheel_Pin);
-//
-//
-//
+	if (button1.state == GPIO_PIN_SET || button3.state == GPIO_PIN_RESET)
+	    speed[FRONT_INDEX] = 30;
+	else if(button1.state == GPIO_PIN_SET || button3.state == GPIO_PIN_SET)
+	    speed[FRONT_INDEX] = -30;
+	else if (button1.state == GPIO_PIN_RESET)
+	  speed[FRONT_INDEX] = 0;
+
+	if(button2.state == GPIO_PIN_SET || button3.state == GPIO_PIN_RESET)
+	    speed[BACK_INDEX] = 30;
+	else if(button2.state == GPIO_PIN_SET || button3.state == GPIO_PIN_SET)
+	    speed[BACK_INDEX] = -30;
+	else if (button2.state == GPIO_PIN_RESET)
+	    speed[FRONT_INDEX] = 0;
+
+	runMotor(&rearMotor, speed[FRONT_INDEX]);
+	runMotor(&backMotor, speed[BACK_INDEX]);
+
+
     }
     prev_time = HAL_GetTick();
 //
@@ -409,33 +413,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
       break;
   }
 
-}
-
-void setBrakes()
-{
-  if((setpoint_vel[LEFT_INDEX] != 0 || setpoint_vel[RIGHT_INDEX] != 0))
-  {
-    //BRAKE_TIM.Instance->BRAKE_CHANNEL = 2000;
-    braked = 0;
-    brake_timer = 0;
-  }
-
-  else if(setpoint_vel[LEFT_INDEX] == 0 && setpoint_vel[RIGHT_INDEX] == 0)
-  {
-    if(fabs(velocity[LEFT_INDEX]) < 0.05 && fabs(velocity[RIGHT_INDEX]) < 0.05)
-    {
-      //Start timer before braking
-      if(brake_timer == 0)
-	brake_timer = HAL_GetTick();
-
-      else if(HAL_GetTick() - brake_timer > engage_brakes_timeout * FREQUENCY)
-      {
-	//BRAKE_TIM.Instance->BRAKE_CHANNEL = 1000;
-	braked = 1;
-	brake_timer = 0;
-      }
-    }
-  }
 }
 
 void calcVelFromJoystick(Joystick_Def *joystick, double *vel_setpoint){
