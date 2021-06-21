@@ -37,7 +37,10 @@ extern "C" {
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
-
+enum{
+  false,
+  true
+};
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/

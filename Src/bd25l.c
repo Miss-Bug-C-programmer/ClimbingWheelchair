@@ -169,12 +169,23 @@ uint8_t readErrorStatus(Motor_TypeDef* motor){
 }
 
 void runMotor(Motor_TypeDef* motor, float speed){
-    if (fabs(speed)/speed < 0)
-      setMotorDir(motor, 1);
-    else
-      setMotorDir(motor, 0);
+  //	    - positive speed Lift DOWN
+  //	    - negative speed lift UP
+    if (motor->ID == 1){
+	if (fabs(speed)/speed  >= 0)
+	      setMotorDir(motor, 0);
+	else
+	  setMotorDir(motor, 1);
+    }
+    else if (motor->ID == 2){
+	if (fabs(speed)/speed  >= 0)
+	  setMotorDir(motor, 1);
+	else
+	  setMotorDir(motor, 0);
+    }
 
-    setMotorSpeed(motor, speed);
+    HAL_Delay(50);
+    setMotorSpeed(motor, fabs(speed));
 
 }
 

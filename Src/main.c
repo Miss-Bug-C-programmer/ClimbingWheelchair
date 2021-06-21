@@ -110,7 +110,13 @@ int speed_level = 1;
 
 
 
-//Lifting Mechanism
+//Lifting Mode
+//State
+uint8_t lifting_mode = false;
+uint8_t front_touchdown = false; //Record the state of climbing wheel whether contact with ground
+uint8_t back_touchdown = false;
+
+
 //Climbing motor
 extern Motor_TypeDef rearMotor, backMotor; //declare in bd25l.c
 float speed[2] = {0}; //range: 0 - 100
@@ -120,9 +126,24 @@ uint8_t receive_buf[15];
 int32_t hub_encoder_1 = 0;
 int32_t hub_encoder_2 = 0;
 
-//Switches
-uint8_t rearLS1 = 0, rearLS2 = 0;
-uint8_t backLS1 = 0, backLS2 = 0;
+//Limit Switches
+Button_TypeDef rearLS1 = {
+    .gpioPort = LimitSW1_GPIO_Port,
+    .gpioPin = LimitSW1_Pin
+};
+Button_TypeDef rearLS2 = {
+    .gpioPort = LimitSW2_GPIO_Port,
+    .gpioPin = LimitSW2_Pin
+};
+Button_TypeDef backLS1 = {
+    .gpioPort = LimitSW3_GPIO_Port,
+    .gpioPin = LimitSW3_Pin
+};
+Button_TypeDef backLS2 = {
+    .gpioPort = LimitSW4_GPIO_Port,
+    .gpioPin = LimitSW4_Pin
+};
+
 
 //Tactile Switches
 Button_TypeDef button1 = {
@@ -289,39 +310,84 @@ int main(void)
 	GPIO_Digital_Filtered_Input(&button2, 30);
 	GPIO_Digital_Filtered_Input(&button3, 30);
 
-	if (button1.state == GPIO_PIN_SET || button3.state == GPIO_PIN_RESET)
-	    speed[FRONT_INDEX] = 30;
-	else if(button1.state == GPIO_PIN_SET || button3.state == GPIO_PIN_SET)
-	    speed[FRONT_INDEX] = -30;
-	else if (button1.state == GPIO_PIN_RESET)
-	  speed[FRONT_INDEX] = 0;
+	GPIO_Digital_Filtered_Input(&rearLS1, 5);
+	GPIO_Digital_Filtered_Input(&rearLS2, 5);
+	GPIO_Digital_Filtered_Input(&backLS1, 5);
+	GPIO_Digital_Filtered_Input(&backLS2, 5);
 
-	if(button2.state == GPIO_PIN_SET || button3.state == GPIO_PIN_RESET)
-	    speed[BACK_INDEX] = 30;
-	else if(button2.state == GPIO_PIN_SET || button3.state == GPIO_PIN_SET)
-	    speed[BACK_INDEX] = -30;
-	else if (button2.state == GPIO_PIN_RESET)
-	    speed[FRONT_INDEX] = 0;
+	//Climbing wheel start landing when button3 is pressed
+	if (GPIO_Digital_Filtered_Input(&button3, 30) && front_touchdown == false && back_touchdown == false){
+	    lifting_mode = true;
 
-	runMotor(&rearMotor, speed[FRONT_INDEX]);
-	runMotor(&backMotor, speed[BACK_INDEX]);
+	    while(!front_touchdown || !back_touchdown){
+	      if (back_touchdown == 0)
+		  runMotor(&backMotor, 30);
+	      else
+		runMotor(&backMotor, 0);
+	      if (front_touchdown == 0)
+		  runMotor(&rearMotor, 30);
+	      else
+		runMotor(&rearMotor, 0);
 
+	      if (GPIO_Digital_Filtered_Input(&backLS1, 5) || GPIO_Digital_Filtered_Input(&backLS2, 5))
+		front_touchdown = 1;
+	      if (GPIO_Digital_Filtered_Input(&backLS1, 5) || GPIO_Digital_Filtered_Input(&backLS2, 5))
+		back_touchdown = 1;
+	    }
+	}
+
+	if (!lifting_mode){
+	    //carry out normal wheelchair operation
+	}
+	else{
+	    //Lifting up and Down with button control
+	    if (button1.state == GPIO_PIN_SET && button3.state == GPIO_PIN_RESET)
+		speed[FRONT_INDEX] = 30;
+	    else if(button1.state == GPIO_PIN_SET && button3.state == GPIO_PIN_SET)
+		speed[FRONT_INDEX] = -30;
+	    else if (button1.state == GPIO_PIN_RESET)
+		speed[FRONT_INDEX] = 0;
+
+	    if(button2.state == GPIO_PIN_SET && button3.state == GPIO_PIN_RESET)
+		speed[BACK_INDEX] = 30;
+	    else if(button2.state == GPIO_PIN_SET && button3.state == GPIO_PIN_SET)
+		speed[BACK_INDEX] = -30;
+	    else if (button2.state == GPIO_PIN_RESET)
+		speed[BACK_INDEX] = 0;
+
+	    runMotor(&rearMotor, speed[FRONT_INDEX]);
+	    runMotor(&backMotor, speed[BACK_INDEX]);
+
+	    //moving forward and backward with joystick
+
+
+	}
+
+
+
+//	if (rearLS1.state == GPIO_PIN_RESET || rearLS2.state == GPIO_PIN_RESET){
+//	    front_touchdown = 0;
+//	}
+//	else if (rearLS1.state == GPIO_PIN_SET || rearLS2.state == GPIO_PIN_SET){
+//	    front_touchdown = 1;
+//	}
+//
+//	if (backLS1.state == GPIO_PIN_RESET || backLS2.state == GPIO_PIN_RESET){
+//	    back_touchdown = 0;
+//	}
+//	else if (backLS1.state == GPIO_PIN_SET || backLS2.state == GPIO_PIN_SET){
+//	    back_touchdown = 1;
+//	}
+//
+//	//Climbing phase start
+
+
+
+	prev_time = HAL_GetTick();
 
     }
-    prev_time = HAL_GetTick();
-//
-//      if(HAL_GetTick() - prev_time >= 1){
-//
-//	  HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
-//	  ADC_DataRequest();
-////	 HAL_Delay(500);
-////	  HAL_Delay (50);
-//      }
-//      prev_time = HAL_GetTick();
-//      HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
+//	HAL_Delay(10);
 
-//  	MOTOR_TIM.Instance->RIGHT_MOTOR_CHANNEL = 1000;
-//	MOTOR_TIM.Instance->LEFT_MOTOR_CHANNEL = 1000;
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
