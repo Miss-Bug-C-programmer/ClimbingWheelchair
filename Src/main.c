@@ -37,6 +37,7 @@
 #include "pid.h"
 #include "bd25l.h"
 #include "X2_6010S.h"
+#include "wheelchair.h"
 
 /* USER CODE END Includes */
 
@@ -63,9 +64,6 @@ typedef struct{
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 
 #define ADC_CHANNEL hspi1
-#define MOTOR_TIM htim3
-#define LEFT_MOTOR_CHANNEL CCR1
-#define RIGHT_MOTOR_CHANNEL CCR2
 
 #define ADC_EXPONENTIAL_ALPHA 	0.85
 #define ADC_TOLERANCE		1500 //Joystick value tolerance
@@ -85,30 +83,12 @@ typedef struct{
 int16_t adc_rawData[8];
 int16_t adc_rawData_prev[2];
 uint32_t prev_adc_time = 0;
-static Joystick_Def joystick = {.x = 0, .y =0.0,
-				.MAX_X = 26000, .MID_X = 16200, .MIN_X = 5900,
-				.MAX_Y = 27000, .MID_Y = 16000, .MIN_Y = 6800};
-
 
 //Wheelchair Base wheel control
-const int JoystickCenterX = 16610;
-const int JoystickCenterY = 16520;
-const int JoystickMagnitudeMax = 13000;
-const int JoystickMagnitudeMin = 2500;
-const int JoyPosBufferSize = 5;
-int joyPosBuffer[2][5] = {0};
-int joy_pos_buffer_cnt = 0;
-int wheelchr_stable_cnt = 0;
-const float JoyForwardAngle = 1.57;
-const float JoyForwardAngleDeadzone = 0.1;
-const float LinearSpeedLevel[3] = {200.0f, 300.0f, 400.0f};
-const float AngularSpeedLevel[3] = {100.0f, 150.0f, 200.0f};
-int speed_level = 1;
-//bool start_from_stationary = true;
-//WheelSpeed wheelchr_wheelspeed_cur;
-//WheelSpeed wheelchr_wheelspeed_pre;
-
-
+int tempJoyRawDataX;
+int tempJoyRawDataY;
+WheelSpeed wheelchr_wheelspeed_cur;
+WheelSpeed wheelchr_wheelspeed_pre;
 
 //Lifting Mode
 //State
@@ -167,8 +147,7 @@ MPU6050_t MPU6050;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-void setBrakes();
-void calcVelFromJoystick(Joystick_Def *joystick, double *vel_setpoint);
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -219,12 +198,13 @@ int main(void)
   //Initialize hardware communication
   ADC_Init();
   ADC_DataRequest();
-////  encoder_Init();
-////  DWT_Init();
+//  encoder_Init();
+//  DWT_Init();
 //  while(MPU6050_Init(&hi2c1)==1);
     HAL_Delay(500);
 
 //  //Start base wheel pwm pin
+  WHEELCHR_Init();
   HAL_TIM_Base_Start(&MOTOR_TIM);
   HAL_TIM_PWM_Start(&MOTOR_TIM, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&MOTOR_TIM, TIM_CHANNEL_2);
@@ -257,17 +237,19 @@ int main(void)
   while (1)
   {
 	//Code to debug with blinking LED
-//      if (HAL_GetTick() - debug_prev_time >= 1000){
-//	  if (led_status == 0){
+      if (HAL_GetTick() - debug_prev_time >= 1000){
+	  if (led_status == 0){
 //	      count++;
-//	      HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
-//	      led_status = 1;
-//	  }
-//	  else if (led_status == 1){
-//	      HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
-//	      led_status = 0;
-//	  }
-//      }
+	      HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
+	      led_status = 1;
+	  }
+	  else if (led_status == 1){
+	      HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
+	      led_status = 0;
+	  }
+		//Read joystick value
+
+      }
 
 	//Debug BD25L
 //      if(speed>100){
@@ -290,8 +272,7 @@ int main(void)
 //      backLS2 = HAL_GPIO_ReadPin(LimitSW4_GPIO_Port, LimitSW4_Pin);
 //      HAL_Delay(500);
 
-      //Read joystick value
-//      ADC_DataRequest();.
+
 
       //Get kamlan filtered angle from MPU6050
 //      MPU6050_Read_All(&hi2c1, &MPU6050);
@@ -304,65 +285,85 @@ int main(void)
 //      runMotor(&backMotor, speed++, 1);
 
     //Loop should execute once every 1 tick
-    if(HAL_GetTick() - prev_time >= 1)
+    if(HAL_GetTick() - prev_time >= 100)
     {
+	ADC_DataRequest();
+
 	GPIO_Digital_Filtered_Input(&button1, 30);
 	GPIO_Digital_Filtered_Input(&button2, 30);
 	GPIO_Digital_Filtered_Input(&button3, 30);
+//
+//	GPIO_Digital_Filtered_Input(&rearLS1, 5);
+//	GPIO_Digital_Filtered_Input(&rearLS2, 5);
+//	GPIO_Digital_Filtered_Input(&backLS1, 5);
+//	GPIO_Digital_Filtered_Input(&backLS2, 5);
+//
+//	//Climbing wheel start landing when button3 is pressed
+//	if (GPIO_Digital_Filtered_Input(&button3, 30) && front_touchdown == false && back_touchdown == false){
+//	    lifting_mode = true;
+//
+//	    while(!front_touchdown || !back_touchdown){
+//	      if (back_touchdown == 0)
+//		  runMotor(&backMotor, 30);
+//	      else
+//		runMotor(&backMotor, 0);
+//	      if (front_touchdown == 0)
+//		  runMotor(&rearMotor, 30);
+//	      else
+//		runMotor(&rearMotor, 0);
+//
+//	      if (GPIO_Digital_Filtered_Input(&backLS1, 5) || GPIO_Digital_Filtered_Input(&backLS2, 5))
+//		front_touchdown = 1;
+//	      if (GPIO_Digital_Filtered_Input(&backLS1, 5) || GPIO_Digital_Filtered_Input(&backLS2, 5))
+//		back_touchdown = 1;
+//	    }
+//	}
+//
+//	if (!lifting_mode){
+//	    //carry out normal wheelchair operation
+//	}
+//	else{
+//	    //Lifting up and Down with button control
+//	    if (button1.state == GPIO_PIN_SET && button3.state == GPIO_PIN_RESET)
+//		speed[FRONT_INDEX] = 30;
+//	    else if(button1.state == GPIO_PIN_SET && button3.state == GPIO_PIN_SET)
+//		speed[FRONT_INDEX] = -30;
+//	    else if (button1.state == GPIO_PIN_RESET)
+//		speed[FRONT_INDEX] = 0;
+//
+//	    if(button2.state == GPIO_PIN_SET && button3.state == GPIO_PIN_RESET)
+//		speed[BACK_INDEX] = 30;
+//	    else if(button2.state == GPIO_PIN_SET && button3.state == GPIO_PIN_SET)
+//		speed[BACK_INDEX] = -30;
+//	    else if (button2.state == GPIO_PIN_RESET)
+//		speed[BACK_INDEX] = 0;
+//
+//	    runMotor(&rearMotor, speed[FRONT_INDEX]);
+//	    runMotor(&backMotor, speed[BACK_INDEX]);
+//
+//	    //moving forward and backward with joystick
+//
+//
+//	}
+//
+	if (button1.state == GPIO_PIN_SET && button3.state == GPIO_PIN_RESET)
+	    speed[FRONT_INDEX] = 30;
+	else if(button1.state == GPIO_PIN_SET && button3.state == GPIO_PIN_SET)
+	    speed[FRONT_INDEX] = -30;
+	else if (button1.state == GPIO_PIN_RESET)
+	    speed[FRONT_INDEX] = 0;
 
-	GPIO_Digital_Filtered_Input(&rearLS1, 5);
-	GPIO_Digital_Filtered_Input(&rearLS2, 5);
-	GPIO_Digital_Filtered_Input(&backLS1, 5);
-	GPIO_Digital_Filtered_Input(&backLS2, 5);
+	if(button2.state == GPIO_PIN_SET && button3.state == GPIO_PIN_RESET)
+	    speed[BACK_INDEX] = 30;
+	else if(button2.state == GPIO_PIN_SET && button3.state == GPIO_PIN_SET)
+	    speed[BACK_INDEX] = -30;
+	else if (button2.state == GPIO_PIN_RESET)
+	    speed[BACK_INDEX] = 0;
 
-	//Climbing wheel start landing when button3 is pressed
-	if (GPIO_Digital_Filtered_Input(&button3, 30) && front_touchdown == false && back_touchdown == false){
-	    lifting_mode = true;
+	runMotor(&rearMotor, speed[FRONT_INDEX]);
+	runMotor(&backMotor, speed[BACK_INDEX]);
 
-	    while(!front_touchdown || !back_touchdown){
-	      if (back_touchdown == 0)
-		  runMotor(&backMotor, 30);
-	      else
-		runMotor(&backMotor, 0);
-	      if (front_touchdown == 0)
-		  runMotor(&rearMotor, 30);
-	      else
-		runMotor(&rearMotor, 0);
-
-	      if (GPIO_Digital_Filtered_Input(&backLS1, 5) || GPIO_Digital_Filtered_Input(&backLS2, 5))
-		front_touchdown = 1;
-	      if (GPIO_Digital_Filtered_Input(&backLS1, 5) || GPIO_Digital_Filtered_Input(&backLS2, 5))
-		back_touchdown = 1;
-	    }
-	}
-
-	if (!lifting_mode){
-	    //carry out normal wheelchair operation
-	}
-	else{
-	    //Lifting up and Down with button control
-	    if (button1.state == GPIO_PIN_SET && button3.state == GPIO_PIN_RESET)
-		speed[FRONT_INDEX] = 30;
-	    else if(button1.state == GPIO_PIN_SET && button3.state == GPIO_PIN_SET)
-		speed[FRONT_INDEX] = -30;
-	    else if (button1.state == GPIO_PIN_RESET)
-		speed[FRONT_INDEX] = 0;
-
-	    if(button2.state == GPIO_PIN_SET && button3.state == GPIO_PIN_RESET)
-		speed[BACK_INDEX] = 30;
-	    else if(button2.state == GPIO_PIN_SET && button3.state == GPIO_PIN_SET)
-		speed[BACK_INDEX] = -30;
-	    else if (button2.state == GPIO_PIN_RESET)
-		speed[BACK_INDEX] = 0;
-
-	    runMotor(&rearMotor, speed[FRONT_INDEX]);
-	    runMotor(&backMotor, speed[BACK_INDEX]);
-
-	    //moving forward and backward with joystick
-
-
-	}
-
+//	WHEELCHR_JoystickControl();
 
 
 //	if (rearLS1.state == GPIO_PIN_RESET || rearLS2.state == GPIO_PIN_RESET){
@@ -450,28 +451,10 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
   switch(GPIO_Pin){
     case AD_BUSY_Pin:{
-
       ADC_Read(&adc_rawData[0]);
-//      //Exponential filter on adc raw data
-      adc_rawData[0] = adc_rawData[0] * (1 - ADC_EXPONENTIAL_ALPHA) + adc_rawData_prev[0] * ADC_EXPONENTIAL_ALPHA;
-      adc_rawData[1] = adc_rawData[1] * (1 - ADC_EXPONENTIAL_ALPHA) + adc_rawData_prev[1] * ADC_EXPONENTIAL_ALPHA;
-      adc_rawData_prev[0] = adc_rawData[0];
-      adc_rawData_prev[1] = adc_rawData[1];
-//
-      //normalise joystick reading between 0 and 1
-      //MAX_X - MID_X != |MIN_X - MID_X|
-      if (adc_rawData[0] >= joystick.MID_X + ADC_TOLERANCE)
-	  joystick.x = (double)(adc_rawData[0] - joystick.MID_X - ADC_TOLERANCE)/(joystick.MAX_X - joystick.MID_X- ADC_TOLERANCE);
-      else if (adc_rawData[0] <= joystick.MID_X - ADC_TOLERANCE)
-      	  joystick.x = -(double)(adc_rawData[0] - joystick.MID_X + ADC_TOLERANCE)/(joystick.MIN_X - joystick.MID_X + ADC_TOLERANCE);
+      tempJoyRawDataX = adc_rawData[0];
+      tempJoyRawDataY = adc_rawData[1];
 
-      if (adc_rawData[1] >= joystick.MID_Y + ADC_TOLERANCE)
-      	  joystick.y = (double)(adc_rawData[1] - joystick.MID_Y - ADC_TOLERANCE)/(joystick.MAX_Y - joystick.MID_Y- ADC_TOLERANCE);
-      else if (adc_rawData[1] <= joystick.MID_Y - ADC_TOLERANCE)
-	    joystick.y = -(double)(adc_rawData[1] - joystick.MID_Y + ADC_TOLERANCE)/(joystick.MIN_Y - joystick.MID_Y + ADC_TOLERANCE);
-
-      joystick.x = MAX(-1,MIN(joystick.x, 1));
-      joystick.y = MAX(-1,MIN(joystick.y, 1));
     }
 
       break;
@@ -479,14 +462,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
       break;
   }
 
-}
-
-void calcVelFromJoystick(Joystick_Def *joystick, double *vel_setpoint){
-  double lin_vel = joystick->y * MAX_LIN_VEL;
-  double ang_vel = joystick->x * MAX_ANG_VEL;
-
-  vel_setpoint[LEFT_INDEX] = (2 * lin_vel - ang_vel * BASE_WIDTH) / (2 * WHEEL_DIA);
-  vel_setpoint[RIGHT_INDEX] = (2 * lin_vel + ang_vel * BASE_WIDTH) / (2 * WHEEL_DIA);
 }
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)

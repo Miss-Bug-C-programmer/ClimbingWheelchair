@@ -98,6 +98,7 @@ void setMotorSpeed(Motor_TypeDef* motor, float speed){
 	    period = 1;
 	    duty_cycle = 0;
 	    HAL_TIM_PWM_Stop(motor->outputPWM, motor->PWM_channel);
+	    brakeMotor(motor, 1);
 	}
 
 	else{
@@ -185,6 +186,7 @@ void runMotor(Motor_TypeDef* motor, float speed){
     }
 
     HAL_Delay(50);
+    brakeMotor(motor, 0);
     setMotorSpeed(motor, fabs(speed));
 
 }

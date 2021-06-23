@@ -7,6 +7,7 @@
 
 #include "X2_6010S.h"
 extern uint8_t receive_buf[15];
+
 void hubMotor_Init(){
 	HAL_GPIO_WritePin(HubM_IO_SON_GPIO_Port, HubM_IO_SON_Pin, GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(HubM_IO_NOT_GPIO_Port, HubM_IO_NOT_Pin, GPIO_PIN_RESET);
