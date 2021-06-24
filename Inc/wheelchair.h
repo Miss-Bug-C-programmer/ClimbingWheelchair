@@ -12,8 +12,8 @@
 #include "X2_6010S.h"
 
 #define MOTOR_TIM htim3
-#define LEFT_MOTOR_CHANNEL CCR1
-#define RIGHT_MOTOR_CHANNEL CCR2
+#define LEFT_MOTOR_CHANNEL CCR2
+#define RIGHT_MOTOR_CHANNEL CCR1
 
 typedef struct
 {

@@ -65,6 +65,11 @@ void joystickCalculatePos(void)
   hJoystick.linear = hJoystick.magnitude/JoystickMagnitudeMax * sin(hJoystick.angle);
   hJoystick.angular = hJoystick.magnitude/JoystickMagnitudeMax * cos(hJoystick.angle);
 
+  if (hJoystick.linear < 0.05)
+    hJoystick.linear = 0;
+  if (hJoystick.angular < 0.05)
+    hJoystick.angular = 0;
+
   joy_pos_buffer_cnt++;
 }
 

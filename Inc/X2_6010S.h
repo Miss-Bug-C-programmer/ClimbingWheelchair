@@ -59,6 +59,7 @@ typedef enum{
   */
 void hubMotor_Init();
 
+void hubMotor_Stop();
 /**
   * @brief send speed command to Hub motor
   * Need add HAL_DMA_RECEIVE_CPT_CALLBACK to receive message

@@ -14,16 +14,17 @@ uint8_t GPIO_Digital_Filtered_Input(Button_TypeDef* hgpio, uint32_t debounce_tim
 		// reset the debouncing timer
 		hgpio->lastDebounceTime = HAL_GetTick();
 	// whatever the reading is at, it's been there for longer than the debounce delay, so the current value is safe
-	if (((HAL_GetTick() - hgpio->lastDebounceTime) > debounce_time) && (hgpio->curRead != hgpio->state))
+//	&& (hgpio->curRead != hgpio->state)
+	if (((HAL_GetTick() - hgpio->lastDebounceTime) > debounce_time) )
 	{
 		hgpio->state = hgpio->curRead;
 		
 		if (hgpio->state == GPIO_PIN_SET) //Effective only when Pin is RESET
 		{
-			return 1;
+			return GPIO_PIN_SET;
 		}
 	}
 	// Update the last button read
 	hgpio->preRead = hgpio->curRead;
-	return 0;
+	return GPIO_PIN_RESET;
 }

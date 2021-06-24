@@ -31,7 +31,7 @@
 #include <math.h>
 #include <stdio.h>
 #include "adc.h"
-#include "encoder.h"
+//#include "encoder.h"
 #include "button.h"
 #include "mpu6050.h"
 #include "pid.h"
@@ -105,7 +105,7 @@ int32_t hub_encoder_2 = 0;
 WheelSpeed climbWheelSpeed;
 const float climb_linSpeedLevel[3] = {2000.0f, 3000.0f, 4000.0f};
 const float climb_angSpeedLevel[3] = {1000.0f, 1500.0f, 2000.0f};
-int climb_speedLevel = 2; //change the speed level if need higher speed
+int climb_speedLevel = 0; //change the speed level if need higher speed
 
 //Limit Switches
 Button_TypeDef rearLS1 = {
@@ -143,6 +143,8 @@ Button_TypeDef button3 = {
 //Sensor
 MPU6050_t MPU6050;
 
+
+int state;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -296,78 +298,68 @@ int main(void)
 	GPIO_Digital_Filtered_Input(&button2, 30);
 	GPIO_Digital_Filtered_Input(&button3, 30);
 //
-//	GPIO_Digital_Filtered_Input(&rearLS1, 5);
-//	GPIO_Digital_Filtered_Input(&rearLS2, 5);
-//	GPIO_Digital_Filtered_Input(&backLS1, 5);
-//	GPIO_Digital_Filtered_Input(&backLS2, 5);
-//
+	GPIO_Digital_Filtered_Input(&rearLS1, 5);
+	GPIO_Digital_Filtered_Input(&rearLS2, 5);
+	GPIO_Digital_Filtered_Input(&backLS1, 5);
+	GPIO_Digital_Filtered_Input(&backLS2, 5);
+
+	state = GPIO_Digital_Filtered_Input(&button3, 30);
+
 //	//Climbing wheel start landing when button3 is pressed
-//	if (GPIO_Digital_Filtered_Input(&button3, 30) && front_touchdown == false && back_touchdown == false){
-//	    lifting_mode = true;
-//
-//	    while(!front_touchdown || !back_touchdown){
-//	      if (back_touchdown == 0)
-//		  runMotor(&backMotor, 30);
-//	      else
-//		runMotor(&backMotor, 0);
-//	      if (front_touchdown == 0)
-//		  runMotor(&rearMotor, 30);
-//	      else
-//		runMotor(&rearMotor, 0);
-//
-//	      if (GPIO_Digital_Filtered_Input(&backLS1, 5) || GPIO_Digital_Filtered_Input(&backLS2, 5))
-//		front_touchdown = 1;
-//	      if (GPIO_Digital_Filtered_Input(&backLS1, 5) || GPIO_Digital_Filtered_Input(&backLS2, 5))
-//		back_touchdown = 1;
-//	    }
-//	}
-//
-//	if (!lifting_mode){
-//	    //carry out normal wheelchair operation
-//	}
-//	else{
-//	    //Lifting up and Down with button control
-//	    if (button1.state == GPIO_PIN_SET && button3.state == GPIO_PIN_RESET)
-//		speed[FRONT_INDEX] = 30;
-//	    else if(button1.state == GPIO_PIN_SET && button3.state == GPIO_PIN_SET)
-//		speed[FRONT_INDEX] = -30;
-//	    else if (button1.state == GPIO_PIN_RESET)
-//		speed[FRONT_INDEX] = 0;
-//
-//	    if(button2.state == GPIO_PIN_SET && button3.state == GPIO_PIN_RESET)
-//		speed[BACK_INDEX] = 30;
-//	    else if(button2.state == GPIO_PIN_SET && button3.state == GPIO_PIN_SET)
-//		speed[BACK_INDEX] = -30;
-//	    else if (button2.state == GPIO_PIN_RESET)
-//		speed[BACK_INDEX] = 0;
-//
-//	    runMotor(&rearMotor, speed[FRONT_INDEX]);
-//	    runMotor(&backMotor, speed[BACK_INDEX]);
-//
-//	    //moving forward and backward with joystick
-//
-//
-//	}
-//
-	if (button1.state == GPIO_PIN_SET && button3.state == GPIO_PIN_RESET)
-	    speed[FRONT_INDEX] = 30;
-	else if(button1.state == GPIO_PIN_SET && button3.state == GPIO_PIN_SET)
-	    speed[FRONT_INDEX] = -30;
-	else if (button1.state == GPIO_PIN_RESET)
-	    speed[FRONT_INDEX] = 0;
+	if (button3.state == 1 && front_touchdown == false && back_touchdown == false && lifting_mode == false){
+	    lifting_mode = true;
 
-	if(button2.state == GPIO_PIN_SET && button3.state == GPIO_PIN_RESET)
-	    speed[BACK_INDEX] = 30;
-	else if(button2.state == GPIO_PIN_SET && button3.state == GPIO_PIN_SET)
-	    speed[BACK_INDEX] = -30;
-	else if (button2.state == GPIO_PIN_RESET)
-	    speed[BACK_INDEX] = 0;
+	    while(front_touchdown == false || back_touchdown == false){
+	      if (back_touchdown == false)
+		  runMotor(&backMotor, 10);
+	      else
+		runMotor(&backMotor, 0);
 
-	runMotor(&rearMotor, speed[FRONT_INDEX]);
-	runMotor(&backMotor, speed[BACK_INDEX]);
+	      if (front_touchdown == false)
+		  runMotor(&rearMotor, 10);
+	      else
+		runMotor(&rearMotor, 0);
 
-	wheel_Control(&climbWheelSpeed);
-	send_HubMotor((int)climbWheelSpeed.cur_l, (int)climbWheelSpeed.cur_r);
+	      if (GPIO_Digital_Filtered_Input(&rearLS1, 5) || GPIO_Digital_Filtered_Input(&rearLS2, 5))
+		front_touchdown = 1;
+	      if (GPIO_Digital_Filtered_Input(&backLS1, 5) || GPIO_Digital_Filtered_Input(&backLS2, 5))
+		back_touchdown = 1;
+	    }
+	}
+
+	if (!lifting_mode){
+	    //carry out normal wheelchair operation
+	    wheel_Control(&baseWheelSpeed);
+	    baseMotorCommand();
+	}
+	else{
+	    //Lifting up and Down with button control
+	    if (button1.state == GPIO_PIN_SET && button3.state == GPIO_PIN_RESET)
+		speed[FRONT_INDEX] = 30;
+	    else if(button1.state == GPIO_PIN_SET && button3.state == GPIO_PIN_SET)
+		speed[FRONT_INDEX] = -30;
+	    else if (button1.state == GPIO_PIN_RESET)
+		speed[FRONT_INDEX] = 0;
+
+	    if(button2.state == GPIO_PIN_SET && button3.state == GPIO_PIN_RESET)
+		speed[BACK_INDEX] = 30;
+	    else if(button2.state == GPIO_PIN_SET && button3.state == GPIO_PIN_SET)
+		speed[BACK_INDEX] = -30;
+	    else if (button2.state == GPIO_PIN_RESET)
+		speed[BACK_INDEX] = 0;
+
+	    runMotor(&rearMotor, speed[FRONT_INDEX]);
+	    runMotor(&backMotor, speed[BACK_INDEX]);
+
+	    //moving forward and backward with joystick
+	    wheel_Control(&climbWheelSpeed);
+	    send_HubMotor((int)climbWheelSpeed.cur_l, (int)climbWheelSpeed.cur_r);
+
+	}
+//	wheel_Control(&climbWheelSpeed);
+//	send_HubMotor((int)climbWheelSpeed.cur_l, (int)climbWheelSpeed.cur_r);
+
+
 
 //	if (rearLS1.state == GPIO_PIN_RESET || rearLS2.state == GPIO_PIN_RESET){
 //	    front_touchdown = 0;

@@ -16,7 +16,7 @@ void hubMotor_Init(){
 
 void send_HubMotor(int16_t motor1_speed, int16_t motor2_speed){
 	uint8_t send_buf[15];
-
+	motor1_speed = -motor1_speed;
 	send_buf[0] = 0xAA;
 	send_buf[1] = 0xA4;
 	send_buf[2] = 0x0E;
