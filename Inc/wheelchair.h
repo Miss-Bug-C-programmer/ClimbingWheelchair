@@ -17,36 +17,49 @@
 
 typedef struct
 {
-  int16_t  x;
-  int16_t  y;
-  float     magnitude;
-  float     angle;
+  int16_t  	x;
+  int16_t  	y;
+  float     	magnitude;
+  float     	angle;
+  float		linear;
+  float		angular;
 }JoystickHandle;
 
 typedef struct
 {
-  float  l;
-  float  r;
+  float  	cur_l;
+  float  	cur_r;
+  float		pre_l;
+  float		pre_r;
+  int		stable_cnt;
+  float		max_linear_speed;
+  float		max_angular_speed;
+  bool		start_from_stationary;
 }WheelSpeed;
 
 extern JoystickHandle hJoystick;
 
 //Define following in main.c
-extern WheelSpeed wheelchr_wheelspeed_cur;
-extern WheelSpeed wheelchr_wheelspeed_pre;
+//Joystick Raw Data
 extern int tempJoyRawDataX;
 extern int tempJoyRawDataY;
 
-//Define in wheelchair.c
-extern int speed_level; //change the speed level if need higher speed
-extern bool start_from_stationary;
+//Base wheel speed
+extern WheelSpeed baseWheelSpeed;
 
-void WHEELCHR_Init(void);
+//Climb wheel speed
+extern WheelSpeed climbWheelSpeed;
 
-void WHEELCHR_JoystickControl(void);
 
-void WHEELCHR_JoystickCalculatePos(void);
+void joystick_Init(void);
 
-void WHEELCHR_JoystickCalculateSpeed(void);
+void joystickCalculatePos(void);
+
+void wheelSpeedControl_Init(WheelSpeed* wheel, float max_lin_speed, float max_ang_speed);
+
+void wheel_Control(WheelSpeed* wheel);
+
+void wheelCalculateSpeed(WheelSpeed* wheel);
+
 
 #endif // MRBA3_WHEELCHAIR_H

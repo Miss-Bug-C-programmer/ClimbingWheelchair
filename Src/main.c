@@ -65,10 +65,6 @@ typedef struct{
 
 #define ADC_CHANNEL hspi1
 
-#define ADC_EXPONENTIAL_ALPHA 	0.85
-#define ADC_TOLERANCE		1500 //Joystick value tolerance
-#define MAX_LIN_VEL		1//Maximum allowable speed is 1m/s
-#define MAX_ANG_VEL		1
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -81,14 +77,15 @@ typedef struct{
 /* USER CODE BEGIN PV */
 //Joystick/ADC
 int16_t adc_rawData[8];
-int16_t adc_rawData_prev[2];
 uint32_t prev_adc_time = 0;
-
-//Wheelchair Base wheel control
 int tempJoyRawDataX;
 int tempJoyRawDataY;
-WheelSpeed wheelchr_wheelspeed_cur;
-WheelSpeed wheelchr_wheelspeed_pre;
+
+//Wheelchair Base wheel control
+WheelSpeed baseWheelSpeed;
+const float base_linSpeedLevel[3] = {200.0f, 300.0f, 400.0f};
+const float base_angSpeedLevel[3] = {100.0f, 150.0f, 200.0f};
+int base_speedLevel = 2; //change the speed level if need higher speed
 
 //Lifting Mode
 //State
@@ -105,6 +102,10 @@ float speed[2] = {0}; //range: 0 - 100
 uint8_t receive_buf[15];
 int32_t hub_encoder_1 = 0;
 int32_t hub_encoder_2 = 0;
+WheelSpeed climbWheelSpeed;
+const float climb_linSpeedLevel[3] = {2000.0f, 3000.0f, 4000.0f};
+const float climb_angSpeedLevel[3] = {1000.0f, 1500.0f, 2000.0f};
+int climb_speedLevel = 2; //change the speed level if need higher speed
 
 //Limit Switches
 Button_TypeDef rearLS1 = {
@@ -147,7 +148,7 @@ MPU6050_t MPU6050;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-
+void baseMotorCommand(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -196,21 +197,22 @@ int main(void)
   MX_TIM8_Init();
   /* USER CODE BEGIN 2 */
   //Initialize hardware communication
+  joystick_Init();
   ADC_Init();
   ADC_DataRequest();
 //  encoder_Init();
 //  DWT_Init();
 //  while(MPU6050_Init(&hi2c1)==1);
-    HAL_Delay(500);
+  HAL_Delay(100);
 
-//  //Start base wheel pwm pin
-  WHEELCHR_Init();
+  //Start base wheel pwm pin
+  wheelSpeedControl_Init(&baseWheelSpeed, base_linSpeedLevel[base_speedLevel], base_angSpeedLevel[base_speedLevel]);
   HAL_TIM_Base_Start(&MOTOR_TIM);
   HAL_TIM_PWM_Start(&MOTOR_TIM, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&MOTOR_TIM, TIM_CHANNEL_2);
   MOTOR_TIM.Instance->RIGHT_MOTOR_CHANNEL = 1500;
   MOTOR_TIM.Instance->LEFT_MOTOR_CHANNEL = 1500;
-  HAL_Delay(500);
+  HAL_Delay(100);
 
   //Initialize rear and back motor
   bd25l_Init(&rearMotor);
@@ -221,6 +223,7 @@ int main(void)
 
   //Initialize hub motor
   hubMotor_Init();
+  wheelSpeedControl_Init(&climbWheelSpeed, climb_linSpeedLevel[climb_speedLevel], climb_angSpeedLevel[climb_speedLevel]);
 
   //Initalize button state
 
@@ -237,19 +240,19 @@ int main(void)
   while (1)
   {
 	//Code to debug with blinking LED
-      if (HAL_GetTick() - debug_prev_time >= 1000){
-	  if (led_status == 0){
-//	      count++;
-	      HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
-	      led_status = 1;
-	  }
-	  else if (led_status == 1){
-	      HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
-	      led_status = 0;
-	  }
-		//Read joystick value
-
-      }
+//      if (HAL_GetTick() - debug_prev_time >= 1000){
+//	  if (led_status == 0){
+////	      count++;
+//	      HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
+//	      led_status = 1;
+//	  }
+//	  else if (led_status == 1){
+//	      HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
+//	      led_status = 0;
+//	  }
+//		//Read joystick value
+//
+//      }
 
 	//Debug BD25L
 //      if(speed>100){
@@ -285,7 +288,7 @@ int main(void)
 //      runMotor(&backMotor, speed++, 1);
 
     //Loop should execute once every 1 tick
-    if(HAL_GetTick() - prev_time >= 100)
+    if(HAL_GetTick() - prev_time >= 1)
     {
 	ADC_DataRequest();
 
@@ -363,8 +366,8 @@ int main(void)
 	runMotor(&rearMotor, speed[FRONT_INDEX]);
 	runMotor(&backMotor, speed[BACK_INDEX]);
 
-//	WHEELCHR_JoystickControl();
-
+	wheel_Control(&climbWheelSpeed);
+	send_HubMotor((int)climbWheelSpeed.cur_l, (int)climbWheelSpeed.cur_r);
 
 //	if (rearLS1.state == GPIO_PIN_RESET || rearLS2.state == GPIO_PIN_RESET){
 //	    front_touchdown = 0;
@@ -451,17 +454,18 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
   switch(GPIO_Pin){
     case AD_BUSY_Pin:{
-      ADC_Read(&adc_rawData[0]);
-      tempJoyRawDataX = adc_rawData[0];
-      tempJoyRawDataY = adc_rawData[1];
-
+      if (HAL_GetTick()-prev_adc_time > 1){
+	  ADC_Read(&adc_rawData[0]);
+	  tempJoyRawDataX = adc_rawData[0];
+	  tempJoyRawDataY = adc_rawData[1];
+	  prev_adc_time = HAL_GetTick();
+      }
     }
 
       break;
     default:
       break;
   }
-
 }
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
@@ -487,7 +491,11 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 //  uint32_t uart_prev_time = HAL_GetTick();
 //  while(HAL_GetTick() - uart_prev_time < 100);
 //  HAL_Delay(250);
+}
 
+void baseMotorCommand(void){
+  MOTOR_TIM.Instance->RIGHT_MOTOR_CHANNEL = (int)baseWheelSpeed.cur_r  + 1500;
+  MOTOR_TIM.Instance->LEFT_MOTOR_CHANNEL = (int)baseWheelSpeed.cur_l + 1500;
 }
 
 
