@@ -34,10 +34,10 @@
 //#include "encoder.h"
 #include "button.h"
 #include "mpu6050.h"
-#include "pid.h"
 #include "bd25l.h"
 #include "X2_6010S.h"
 #include "wheelchair.h"
+#include "PID.h"
 
 /* USER CODE END Includes */
 
@@ -56,6 +56,7 @@ typedef struct{
 
 }Joystick_Def;
 
+//typedef Joystick_Def * joy;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -82,10 +83,10 @@ int tempJoyRawDataX;
 int tempJoyRawDataY;
 
 //Wheelchair Base wheel control
-WheelSpeed baseWheelSpeed;
+WheelSpeed baseWheelSpeed = {.accel_loop = 100.0f, .decel_loop = 200.0f, .left_speed_step = 1.0, .right_speed_step = 1.0};
 const float base_linSpeedLevel[3] = {200.0f, 300.0f, 400.0f};
 const float base_angSpeedLevel[3] = {100.0f, 150.0f, 200.0f};
-int base_speedLevel = 2; //change the speed level if need higher speed
+int base_speedLevel = 1; //change the speed level if need higher speed
 
 //Lifting Mode
 //State
@@ -98,13 +99,16 @@ uint8_t back_touchdown = false;
 extern Motor_TypeDef rearMotor, backMotor; //declare in bd25l.c
 float speed[2] = {0}; //range: 0 - 100
 
+
+
+
 //Hub Motor UART receive
 uint8_t receive_buf[15];
 int32_t hub_encoder_1 = 0;
 int32_t hub_encoder_2 = 0;
-WheelSpeed climbWheelSpeed;
-const float climb_linSpeedLevel[3] = {2000.0f, 3000.0f, 4000.0f};
-const float climb_angSpeedLevel[3] = {1000.0f, 1500.0f, 2000.0f};
+WheelSpeed climbWheelSpeed = {.accel_loop = 100.0f, .decel_loop = 200.0f, .left_speed_step = 5.0, .right_speed_step = 5.0};
+const float climb_linSpeedLevel[3] = {1000.0f, 3000.0f, 4000.0f};
+const float climb_angSpeedLevel[3] = {500.0f, 1500.0f, 2000.0f};
 int climb_speedLevel = 0; //change the speed level if need higher speed
 
 //Limit Switches
@@ -142,6 +146,19 @@ Button_TypeDef button3 = {
 
 //Sensor
 MPU6050_t MPU6050;
+float initial_angle;
+uint8_t climb_first_iteration = true;
+
+//Balance control
+struct pid_controller balance_ctrl;
+PID_t balance_pid;
+
+// Control loop input,output and setpoint variables
+float backClimb_input = 0, backClimb_output = 0;
+float backClimb_setpoint = 0;
+
+// Control loop gains
+float backClimb_kp = 2.5, backClimb_ki = 0.0, backClimb_kd = 0.0;
 
 
 int state;
@@ -204,7 +221,7 @@ int main(void)
   ADC_DataRequest();
 //  encoder_Init();
 //  DWT_Init();
-//  while(MPU6050_Init(&hi2c1)==1);
+  while(MPU6050_Init(&hi2c1)==1);
   HAL_Delay(100);
 
   //Start base wheel pwm pin
@@ -227,7 +244,13 @@ int main(void)
   hubMotor_Init();
   wheelSpeedControl_Init(&climbWheelSpeed, climb_linSpeedLevel[climb_speedLevel], climb_angSpeedLevel[climb_speedLevel]);
 
-  //Initalize button state
+  //Initialize balance controller
+  // Prepare PID controller for operation
+  balance_pid = pid_create(&balance_ctrl, &backClimb_input, &backClimb_output, &backClimb_setpoint, backClimb_kp, backClimb_ki, backClimb_kd);
+  // Set controler output limits from 0 to 200
+  pid_limits(balance_pid, 0, 30);
+  // Allow PID to compute and change output
+  pid_auto(balance_pid);
 
   /* USER CODE END 2 */
 
@@ -236,8 +259,8 @@ int main(void)
   uint32_t prev_time = HAL_GetTick();
 
   //debug variable
-  uint32_t debug_prev_time = HAL_GetTick();
-  uint8_t led_status = 0;
+//  uint32_t debug_prev_time = HAL_GetTick();
+//  uint8_t led_status = 0;
 //  float speed = 0;
   while (1)
   {
@@ -279,8 +302,6 @@ int main(void)
 
 
 
-      //Get kamlan filtered angle from MPU6050
-//      MPU6050_Read_All(&hi2c1, &MPU6050);
 
 //      //Test speed commands on bse motor
 //      MOTOR_TIM.Instance->RIGHT_MOTOR_CHANNEL -= 50;
@@ -294,6 +315,10 @@ int main(void)
     {
 	ADC_DataRequest();
 
+	//Get kamlan filtered angle from MPU6050
+	MPU6050_Read_All(&hi2c1, &MPU6050);
+
+
 	GPIO_Digital_Filtered_Input(&button1, 30);
 	GPIO_Digital_Filtered_Input(&button2, 30);
 	GPIO_Digital_Filtered_Input(&button3, 30);
@@ -306,59 +331,122 @@ int main(void)
 	state = GPIO_Digital_Filtered_Input(&button3, 30);
 
 //	//Climbing wheel start landing when button3 is pressed
-	if (button3.state == 1 && front_touchdown == false && back_touchdown == false && lifting_mode == false){
-	    lifting_mode = true;
+//	if (button3.state == 1 && front_touchdown == false && back_touchdown == false && lifting_mode == false){
+//	    lifting_mode = true;
+//
+//	    while(front_touchdown == false || back_touchdown == false){
+//	      if (back_touchdown == false)
+//		  runMotor(&backMotor, 10);
+//	      else
+//		runMotor(&backMotor, 0);
+//
+//	      if (front_touchdown == false)
+//		  runMotor(&rearMotor, 10);
+//	      else
+//		runMotor(&rearMotor, 0);
+//
+//	      if (GPIO_Digital_Filtered_Input(&rearLS1, 5) || GPIO_Digital_Filtered_Input(&rearLS2, 5))
+//		front_touchdown = 1;
+//	      if (GPIO_Digital_Filtered_Input(&backLS1, 5) || GPIO_Digital_Filtered_Input(&backLS2, 5))
+//		back_touchdown = 1;
+//	    }
+//	}
+//
+//	if (!lifting_mode){
+//	    //carry out normal wheelchair operation
+//	    wheel_Control(&baseWheelSpeed);
+//	    baseMotorCommand();
+//	}
+//	else{
+//	    //Lifting up and Down with button control
+//	    if (button1.state == GPIO_PIN_SET && button3.state == GPIO_PIN_RESET)
+//		speed[FRONT_INDEX] = 30;
+//	    else if(button1.state == GPIO_PIN_SET && button3.state == GPIO_PIN_SET)
+//		speed[FRONT_INDEX] = -30;
+//	    else if (button1.state == GPIO_PIN_RESET)
+//		speed[FRONT_INDEX] = 0;
+//
+//	    if(button2.state == GPIO_PIN_SET && button3.state == GPIO_PIN_RESET)
+//		speed[BACK_INDEX] = 30;
+//	    else if(button2.state == GPIO_PIN_SET && button3.state == GPIO_PIN_SET)
+//		speed[BACK_INDEX] = -30;
+//	    else if (button2.state == GPIO_PIN_RESET)
+//		speed[BACK_INDEX] = 0;
+//
+//	    runMotor(&rearMotor, speed[FRONT_INDEX]);
+//	    runMotor(&backMotor, speed[BACK_INDEX]);
+//
+//	    //moving forward and backward with joystick
+//	    wheel_Control(&climbWheelSpeed);
+//	    send_HubMotor((int)climbWheelSpeed.cur_l, (int)climbWheelSpeed.cur_r);
 
-	    while(front_touchdown == false || back_touchdown == false){
-	      if (back_touchdown == false)
-		  runMotor(&backMotor, 10);
-	      else
-		runMotor(&backMotor, 0);
+	    //Lifting with PID controller and single button control
+//	    if (button1.state == GPIO_PIN_SET && button3.state == GPIO_PIN_RESET)
+//		speed[FRONT_INDEX] = 30;
+//	    else if(button1.state == GPIO_PIN_SET && button3.state == GPIO_PIN_SET)
+//		speed[FRONT_INDEX] = -30;
+//	    else if (button1.state == GPIO_PIN_RESET)
+//		speed[FRONT_INDEX] = 0;
+//	    runMotor(&rearMotor, speed[FRONT_INDEX]);
+//
+//	    if (climb_first_iteration){
+//		initial_angle = MPU6050.KalmanAngleX;
+//		climb_first_iteration = false;
+//	    }
+//
+//
+//	    // Check if need to compute PID
+//	    if (pid_need_compute(balance_pid) && climb_first_iteration == false && fabs(initial_angle - MPU6050.KalmanAngleX) > 2.0){
+//		    // Read process feedback
+//		    backClimb_input = (MPU6050.KalmanAngleX - initial_angle) * 5;
+//		    // Compute new PID output value
+//		    pid_compute(balance_pid);
+//		    //Change actuator value
+//		    speed[BACK_INDEX] = backClimb_output;
+//	    }
+//
+//
+//
 
-	      if (front_touchdown == false)
-		  runMotor(&rearMotor, 10);
-	      else
-		runMotor(&rearMotor, 0);
 
-	      if (GPIO_Digital_Filtered_Input(&rearLS1, 5) || GPIO_Digital_Filtered_Input(&rearLS2, 5))
-		front_touchdown = 1;
-	      if (GPIO_Digital_Filtered_Input(&backLS1, 5) || GPIO_Digital_Filtered_Input(&backLS2, 5))
-		back_touchdown = 1;
-	    }
-	}
-
-	if (!lifting_mode){
-	    //carry out normal wheelchair operation
-	    wheel_Control(&baseWheelSpeed);
-	    baseMotorCommand();
-	}
-	else{
-	    //Lifting up and Down with button control
-	    if (button1.state == GPIO_PIN_SET && button3.state == GPIO_PIN_RESET)
-		speed[FRONT_INDEX] = 30;
-	    else if(button1.state == GPIO_PIN_SET && button3.state == GPIO_PIN_SET)
-		speed[FRONT_INDEX] = -30;
-	    else if (button1.state == GPIO_PIN_RESET)
-		speed[FRONT_INDEX] = 0;
-
-	    if(button2.state == GPIO_PIN_SET && button3.state == GPIO_PIN_RESET)
-		speed[BACK_INDEX] = 30;
-	    else if(button2.state == GPIO_PIN_SET && button3.state == GPIO_PIN_SET)
-		speed[BACK_INDEX] = -30;
-	    else if (button2.state == GPIO_PIN_RESET)
-		speed[BACK_INDEX] = 0;
-
-	    runMotor(&rearMotor, speed[FRONT_INDEX]);
-	    runMotor(&backMotor, speed[BACK_INDEX]);
-
-	    //moving forward and backward with joystick
-	    wheel_Control(&climbWheelSpeed);
-	    send_HubMotor((int)climbWheelSpeed.cur_l, (int)climbWheelSpeed.cur_r);
-
-	}
+//
+//	}
 //	wheel_Control(&climbWheelSpeed);
 //	send_HubMotor((int)climbWheelSpeed.cur_l, (int)climbWheelSpeed.cur_r);
 
+	//Lifting up and Down with button control
+	if (button1.state == GPIO_PIN_SET && button3.state == GPIO_PIN_RESET)
+	    speed[FRONT_INDEX] = 30;
+	else if(button1.state == GPIO_PIN_SET && button3.state == GPIO_PIN_SET)
+	    speed[FRONT_INDEX] = -30;
+	else if (button1.state == GPIO_PIN_RESET)
+	    speed[FRONT_INDEX] = 0;
+
+	if(button2.state == GPIO_PIN_SET && button3.state == GPIO_PIN_RESET)
+	    speed[BACK_INDEX] = 30;
+	else if(button2.state == GPIO_PIN_SET && button3.state == GPIO_PIN_SET)
+	    speed[BACK_INDEX] = -30;
+	else if (button2.state == GPIO_PIN_RESET)
+	    speed[BACK_INDEX] = 0;
+
+	runMotor(&rearMotor, speed[FRONT_INDEX]);
+//	runMotor(&backMotor, speed[BACK_INDEX]);
+
+	if (climb_first_iteration){
+	    initial_angle = MPU6050.KalmanAngleX;
+	    climb_first_iteration = false;
+	}
+
+
+	// Check if need to compute PID
+	if (pid_need_compute(balance_pid) && climb_first_iteration == false && fabs(initial_angle - MPU6050.KalmanAngleX) > 2.0){
+		// Read process feedback
+		backClimb_input = (MPU6050.KalmanAngleX - initial_angle) * 5;
+		// Compute new PID output value
+		pid_compute(balance_pid);
+		//Change actuator value
+		speed[BACK_INDEX] = backClimb_output;
+	}
 
 
 //	if (rearLS1.state == GPIO_PIN_RESET || rearLS2.state == GPIO_PIN_RESET){

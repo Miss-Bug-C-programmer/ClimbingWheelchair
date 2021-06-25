@@ -35,6 +35,11 @@ typedef struct
   float		max_linear_speed;
   float		max_angular_speed;
   bool		start_from_stationary;
+  float		accel_loop;
+  float		decel_loop;
+  float		left_speed_step; //if not start from stationary
+  float		right_speed_step; //if not start from stationary
+
 }WheelSpeed;
 
 extern JoystickHandle hJoystick;

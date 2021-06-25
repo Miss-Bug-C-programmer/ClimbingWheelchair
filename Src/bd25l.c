@@ -101,6 +101,7 @@ void setMotorSpeed(Motor_TypeDef* motor, float speed){
 	    brakeMotor(motor, 1);
 	}
 
+
 	else{
 	    motor->outputPWM->Instance->ARR = period;
 	    if(motor->PWM_channel == TIM_CHANNEL_1)

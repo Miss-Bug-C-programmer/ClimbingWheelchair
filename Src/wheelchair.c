@@ -11,7 +11,7 @@ extern TIM_HandleTypeDef htim3;
 static const int JoystickCenterX = 16200;
 static const int JoystickCenterY = 16000;
 static const int JoystickMagnitudeMax = 11000;
-static const int JoystickMagnitudeMin = 2500;
+static const int JoystickMagnitudeMin = 3000;
 static const int JoyPosBufferSize = 5;
 static int joyPosBuffer[2][5] = {0};
 static int joy_pos_buffer_cnt = 0;
@@ -65,9 +65,9 @@ void joystickCalculatePos(void)
   hJoystick.linear = hJoystick.magnitude/JoystickMagnitudeMax * sin(hJoystick.angle);
   hJoystick.angular = hJoystick.magnitude/JoystickMagnitudeMax * cos(hJoystick.angle);
 
-  if (hJoystick.linear < 0.05)
+  if (fabs(hJoystick.linear) < 0.05)
     hJoystick.linear = 0;
-  if (hJoystick.angular < 0.05)
+  if (fabs(hJoystick.angular) < 0.05)
     hJoystick.angular = 0;
 
   joy_pos_buffer_cnt++;
@@ -101,14 +101,14 @@ void wheel_Control(WheelSpeed* wheel)
 
   if (hJoystick.magnitude > JoystickMagnitudeMin)
   {
-    float left_speed_step = 1.0;
-    float right_speed_step = 1.0;
+    float left_speed_step = wheel->left_speed_step;
+    float right_speed_step = wheel->right_speed_step;
 
     if (wheel->start_from_stationary)
     {
-      float accel_loop = 100.0f;
-      left_speed_step = fabs( wheel->cur_l) / accel_loop;
-      right_speed_step = fabs( wheel->cur_l) / accel_loop;
+//      float accel_loop = 100.0f;
+      left_speed_step = fabs( wheel->cur_l) / wheel->accel_loop;
+      right_speed_step = fabs( wheel->cur_l) / wheel->accel_loop;
 
       if (fabs(wheel->pre_l) > 0.5f * wheel->max_angular_speed &&
           fabs(wheel->pre_r) > 0.5f * wheel->max_angular_speed)
@@ -129,16 +129,16 @@ void wheel_Control(WheelSpeed* wheel)
   }
   else
   {
-    float decel_loop = 150.0f;
+//    float decel_loop = 150.0f;
 
-    float zero_speed = wheel->max_linear_speed / decel_loop;
+    float zero_speed = wheel->max_linear_speed / wheel->decel_loop;
     if (fabs(wheel->cur_l) < zero_speed)
       wheel->cur_l = 0;
     if (fabs(wheel->cur_r) < zero_speed)
       wheel->cur_r = 0;
 
-    float left_speed_step = fabs(wheel->cur_l) / decel_loop;
-    float right_speed_step = fabs(wheel->cur_r) / decel_loop;
+    float left_speed_step = fabs(wheel->cur_l) / wheel->decel_loop;
+    float right_speed_step = fabs(wheel->cur_r) / wheel->decel_loop;
     
     if (wheel->cur_l > left_speed_step)
       wheel->cur_l = wheel->pre_r - left_speed_step;
