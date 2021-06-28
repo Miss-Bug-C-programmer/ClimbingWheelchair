@@ -14,9 +14,11 @@ void hubMotor_Init(){
 	HAL_GPIO_WritePin(HubM_IO_POT_GPIO_Port, HubM_IO_POT_Pin, GPIO_PIN_RESET);
 }
 
-void send_HubMotor(int16_t motor1_speed, int16_t motor2_speed){
+void send_HubMotor(float m1_speed, float m2_speed){
+	int16_t motor1_speed, motor2_speed;
+	motor1_speed = -(int)(m1_speed * 4096);
+	motor2_speed = (int)(m2_speed * 4096);
 	uint8_t send_buf[15];
-	motor1_speed = -motor1_speed;
 	send_buf[0] = 0xAA;
 	send_buf[1] = 0xA4;
 	send_buf[2] = 0x0E;
