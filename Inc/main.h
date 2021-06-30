@@ -172,8 +172,8 @@ void Error_Handler(void);
 #define WHEEL_ACC_LIMIT		10.0
 #define BASE_WIDTH 		0.5
 
-#define BASE_LENGTH		30
-#define HUB_DIAMETER	0.5
+#define BASE_LENGTH		0.9
+#define HUB_DIAMETER	0.12
 
 
 /* USER CODE END Private defines */

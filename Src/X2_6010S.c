@@ -16,8 +16,11 @@ void hubMotor_Init(){
 
 void send_HubMotor(float m1_speed, float m2_speed){
 	int16_t motor1_speed, motor2_speed;
-	motor1_speed = -(int)(m1_speed * 4096);
-	motor2_speed = (int)(m2_speed * 4096);
+//	motor1_speed = -(int16_t)(m1_speed * 4096.0);
+//	motor2_speed = (int16_t)(m2_speed * 4096.0);
+	motor1_speed = -(int16_t)(m1_speed);
+	motor2_speed = (int16_t)(m2_speed);
+
 	uint8_t send_buf[15];
 	send_buf[0] = 0xAA;
 	send_buf[1] = 0xA4;
@@ -63,8 +66,8 @@ void send_HubMotor(float m1_speed, float m2_speed){
 
 	send_buf[14] = (uint8_t)(sum & 0x00FF);
 
-	HAL_UART_Transmit(&huart3, send_buf, sizeof(send_buf), 50);
-	HAL_UART_Receive_DMA(&huart3, receive_buf, sizeof(receive_buf));
+	HAL_UART_Transmit(&huart3, send_buf, 15, 50);
+	HAL_UART_Receive_DMA(&huart3, receive_buf, 15);
 }
 
 
