@@ -386,6 +386,7 @@ int main(void)
 	    speed[BACK_INDEX] = backClimb_output;
 	}
 
+
 	if (speed[FRONT_INDEX] == 0 && speed[BACK_INDEX] == 0)
 		emBrakeMotor(0);
 	else
@@ -393,6 +394,8 @@ int main(void)
 	runMotor(&rearMotor, speed[FRONT_INDEX]);
 	runMotor(&backMotor, speed[BACK_INDEX]);
 
+	speed[FRONT_INDEX] = 0;
+	speed[BACK_INDEX] = 0;
 
 
 //---------------------------------------------------------------------------------------------------
