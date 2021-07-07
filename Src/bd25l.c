@@ -94,27 +94,47 @@ void setMotorSpeed(Motor_TypeDef* motor, float speed){
 	period = (int)(1e6/frequency)+1;
 	duty_cycle = period / 2;
 
+//	if (speed<4){
+//	    period = 1;
+//	    duty_cycle = 0;
+//	    HAL_TIM_PWM_Stop(motor->outputPWM, motor->PWM_channel);
+//	    brakeMotor(motor, 1);
+//	}
+//
+//
+//	else{
+//	    motor->outputPWM->Instance->ARR = period;
+//	    if(motor->PWM_channel == TIM_CHANNEL_1)
+//	      motor->outputPWM->Instance->CCR1 = duty_cycle;
+//	    else if(motor->PWM_channel == TIM_CHANNEL_2)
+//		      motor->outputPWM->Instance->CCR2 = duty_cycle;
+//	    else if(motor->PWM_channel == TIM_CHANNEL_3)
+//		      motor->outputPWM->Instance->CCR3 = duty_cycle;
+//	    else if(motor->PWM_channel == TIM_CHANNEL_4)
+//	      motor->outputPWM->Instance->CCR4 = duty_cycle;
+//
+//	    HAL_TIM_PWM_Start(motor->outputPWM, motor->PWM_channel);
+//	}
+
 	if (speed<4){
-	    period = 1;
-	    duty_cycle = 0;
-	    HAL_TIM_PWM_Stop(motor->outputPWM, motor->PWM_channel);
-	    brakeMotor(motor, 1);
+		brakeMotor(motor, 1);
 	}
 
 
-	else{
-	    motor->outputPWM->Instance->ARR = period;
-	    if(motor->PWM_channel == TIM_CHANNEL_1)
-	      motor->outputPWM->Instance->CCR1 = duty_cycle;
-	    else if(motor->PWM_channel == TIM_CHANNEL_2)
-		      motor->outputPWM->Instance->CCR2 = duty_cycle;
-	    else if(motor->PWM_channel == TIM_CHANNEL_3)
-		      motor->outputPWM->Instance->CCR3 = duty_cycle;
-	    else if(motor->PWM_channel == TIM_CHANNEL_4)
-	      motor->outputPWM->Instance->CCR4 = duty_cycle;
 
-	    HAL_TIM_PWM_Start(motor->outputPWM, motor->PWM_channel);
-	}
+	motor->outputPWM->Instance->ARR = period;
+	if(motor->PWM_channel == TIM_CHANNEL_1)
+	  motor->outputPWM->Instance->CCR1 = duty_cycle;
+	else if(motor->PWM_channel == TIM_CHANNEL_2)
+		  motor->outputPWM->Instance->CCR2 = duty_cycle;
+	else if(motor->PWM_channel == TIM_CHANNEL_3)
+		  motor->outputPWM->Instance->CCR3 = duty_cycle;
+	else if(motor->PWM_channel == TIM_CHANNEL_4)
+	  motor->outputPWM->Instance->CCR4 = duty_cycle;
+
+	HAL_TIM_PWM_Start(motor->outputPWM, motor->PWM_channel);
+
+
 
 	motor->outputPWM->Instance->CNT = 0;
 }
