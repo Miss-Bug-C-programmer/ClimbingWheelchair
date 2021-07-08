@@ -443,34 +443,34 @@ int main(void)
 //3. Climbing wheel retraction
 //---------------------------------------------------------------------------------------------------
 	//Climbing wheel start landing when button3 is pressed
-	if (button3.state == 1 && front_touchdown == false && back_touchdown == false && lifting_mode == 0){
-	    while(front_touchdown == false || back_touchdown == false){
-	    	//if front touch before back, climbing up process
-	    	if (back_touchdown == 0 && front_touchdown == 1)
-	    		lifting_mode = 1;
-	    	//if back touch before front, climbing down process
-	    	else if (back_touchdown == 1 && front_touchdown == 0)
-	    		lifting_mode = 2;
-
-
-	    	initial_angle = exp_angle_filter * MPU6050.KalmanAngleX + (1-exp_angle_filter) * initial_angle;
-
-			if (back_touchdown == false)
-				runMotor(&backMotor, 10);
-			else
-				runMotor(&backMotor, 0);
-
-			if (front_touchdown == false)
-				runMotor(&rearMotor, 10);
-			else
-				runMotor(&rearMotor, 0);
-
-			if (GPIO_Digital_Filtered_Input(&rearLS1, 5) || GPIO_Digital_Filtered_Input(&rearLS2, 5))
-				front_touchdown = 1;
-			if (GPIO_Digital_Filtered_Input(&backLS1, 5) || GPIO_Digital_Filtered_Input(&backLS2, 5))
-				back_touchdown = 1;
-	    }
-	}
+//	if (button3.state == 1 && front_touchdown == false && back_touchdown == false && lifting_mode == 0){
+//	    while(front_touchdown == false || back_touchdown == false){
+//	    	//if front touch before back, climbing up process
+//	    	if (back_touchdown == 0 && front_touchdown == 1)
+//	    		lifting_mode = 1;
+//	    	//if back touch before front, climbing down process
+//	    	else if (back_touchdown == 1 && front_touchdown == 0)
+//	    		lifting_mode = 2;
+//
+//
+//	    	initial_angle = exp_angle_filter * MPU6050.KalmanAngleX + (1-exp_angle_filter) * initial_angle;
+//
+//			if (back_touchdown == false)
+//				runMotor(&backMotor, 10);
+//			else
+//				runMotor(&backMotor, 0);
+//
+//			if (front_touchdown == false)
+//				runMotor(&rearMotor, 10);
+//			else
+//				runMotor(&rearMotor, 0);
+//
+//			if (GPIO_Digital_Filtered_Input(&rearLS1, 5) || GPIO_Digital_Filtered_Input(&rearLS2, 5))
+//				front_touchdown = 1;
+//			if (GPIO_Digital_Filtered_Input(&backLS1, 5) || GPIO_Digital_Filtered_Input(&backLS2, 5))
+//				back_touchdown = 1;
+//	    }
+//	}
 //
 //	if (lifting_mode == 0){
 //	    //carry out normal wheelchair operation
@@ -585,8 +585,8 @@ int main(void)
 //	runMotor(&rearMotor, speed[FRONT_INDEX]);
 //	runMotor(&backMotor, speed[BACK_INDEX]);
 
-//	wheel_Control(&climbWheelSpeed);
-//	send_HubMotor(climbWheelSpeed.cur_l, climbWheelSpeed.cur_r);
+	wheel_Control(&climbWheelSpeed);
+	send_HubMotor(climbWheelSpeed.cur_l, climbWheelSpeed.cur_r);
 //	climbingForward();
 //	float speed = 6.0/60.0;
 //	send_HubMotor(speed, speed);
