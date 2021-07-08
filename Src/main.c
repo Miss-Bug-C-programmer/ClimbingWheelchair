@@ -553,10 +553,9 @@ int main(void)
 	    		lifting_mode = 1;
 	    	//if back touch before front, climbing down process
 	    	else if (back_touchdown == 1 && front_touchdown == 0)
-	    		lifting_mode = 2;
+	    		lifting_mode = 2;//		send_HubMotor(climbWheelSpeed.cur_l, climbWheelSpeed.cur_r);
 
-	    	if (lifting_mode == 0)
-	    		initial_angle = exp_angle_filter * MPU6050.KalmanAngleX + (1-exp_angle_filter) * initial_angle;
+	    	initial_angle = exp_angle_filter * MPU6050.KalmanAngleX + (1-exp_angle_filter) * initial_angle;
 
 			if (back_touchdown == false)
 				runMotor(&backMotor, 10);
@@ -579,6 +578,19 @@ int main(void)
 	    //carry out normal wheelchair operation
 	    wheel_Control(&baseWheelSpeed);
 	    baseMotorCommand();
+		if (button1.state == GPIO_PIN_SET && button3.state == GPIO_PIN_RESET)
+			speed[FRONT_INDEX] = 30;
+		else if(button1.state == GPIO_PIN_SET && button3.state == GPIO_PIN_SET)
+			speed[FRONT_INDEX] = -30;
+		else if (button1.state == GPIO_PIN_RESET)
+			speed[FRONT_INDEX] = 0;
+
+		if(button2.state == GPIO_PIN_SET && button3.state == GPIO_PIN_RESET)
+			speed[BACK_INDEX] = 30;
+		else if(button2.state == GPIO_PIN_SET && button3.state == GPIO_PIN_SET)
+			speed[BACK_INDEX] = -30;
+		else if (button2.state == GPIO_PIN_RESET)
+			speed[BACK_INDEX] = 0;
 //		wheel_Control(&climbWheelSpeed);
 //		send_HubMotor(climbWheelSpeed.cur_l, climbWheelSpeed.cur_r);
 	}
@@ -597,6 +609,7 @@ int main(void)
 		//Need a safety check before move forward, can be done using encoder
 		//3. Then move forward
 		wheel_Control(&climbWheelSpeed);
+		send_HubMotor(climbWheelSpeed.cur_l, climbWheelSpeed.cur_r);
 
 		if (button3.state == GPIO_PIN_SET){
 			speed[FRONT_INDEX] = 0;
@@ -622,6 +635,7 @@ int main(void)
 		//Need a safety check before move forward, can be done using encoder
 		//3. Then move forward
 		wheel_Control(&climbWheelSpeed);
+		send_HubMotor(climbWheelSpeed.cur_l, climbWheelSpeed.cur_r);
 
 		if (button3.state == GPIO_PIN_SET){
 			speed[FRONT_INDEX] = 0;
