@@ -353,8 +353,8 @@ int main(void)
 	else if (button2.state == GPIO_PIN_RESET)
 	    speed[BACK_INDEX] = 0;
 //
-//	runMotor(&rearMotor, speed[FRONT_INDEX]);
-//	runMotor(&backMotor, speed[BACK_INDEX]);
+	runMotor(&rearMotor, speed[FRONT_INDEX]);
+	runMotor(&backMotor, speed[BACK_INDEX]);
 
 //---------------------------------------------------------------------------------------------------
 //Testing Climbing Balance Control
@@ -402,39 +402,39 @@ int main(void)
 //---------------------------------------------------------------------------------------------------
 	//Need to put this inside the landing loop
 	//if front leg depressed, climb 1st iteration false
-	if (climb_first_iteration && speed[BACK_INDEX] != 0){
-		initial_angle = exp_angle_filter * MPU6050.KalmanAngleX + (1-exp_angle_filter) * initial_angle ;
-		if (GPIO_Digital_Filtered_Input(&backLS1, 5) || GPIO_Digital_Filtered_Input(&backLS2, 5))
-			climb_first_iteration = false;
-	}
-
-	//If one of the leg limit switch release, restart the climb first iteration
-	if ((!GPIO_Digital_Filtered_Input(&backLS1, 5) || !GPIO_Digital_Filtered_Input(&backLS2, 5)) && climb_first_iteration == false){
-		climb_first_iteration = true;
-		initial_angle = 0;
-	}
-
-	// Check if need to compute PID
-	//Note for front control balance, angle need to reverse
-	if (pid_need_compute(balance_pid) && climb_first_iteration == false && fabs(initial_angle - MPU6050.KalmanAngleX) > 1.0){
-		// Read process feedback
-		climbUp_input = -(MPU6050.KalmanAngleX - initial_angle);
-		// Compute new PID output value
-		pid_compute(balance_pid);
-		//Change actuator value
-		speed[FRONT_INDEX] = climbUp_output;
-	}
-
-
-	if (speed[FRONT_INDEX] == 0 && speed[BACK_INDEX] == 0)
-		emBrakeMotor(0);
-	else
-		emBrakeMotor(1);
-	runMotor(&rearMotor, speed[FRONT_INDEX]);
-	runMotor(&backMotor, speed[BACK_INDEX]);
-
-	speed[FRONT_INDEX] = 0;
-	speed[BACK_INDEX] = 0;
+//	if (climb_first_iteration && speed[BACK_INDEX] != 0){
+//		initial_angle = exp_angle_filter * MPU6050.KalmanAngleX + (1-exp_angle_filter) * initial_angle ;
+//		if (GPIO_Digital_Filtered_Input(&backLS1, 5) || GPIO_Digital_Filtered_Input(&backLS2, 5))
+//			climb_first_iteration = false;
+//	}
+//
+//	//If one of the leg limit switch release, restart the climb first iteration
+//	if ((!GPIO_Digital_Filtered_Input(&backLS1, 5) || !GPIO_Digital_Filtered_Input(&backLS2, 5)) && climb_first_iteration == false){
+//		climb_first_iteration = true;
+//		initial_angle = 0;
+//	}
+//
+//	// Check if need to compute PID
+//	//Note for front control balance, angle need to reverse
+//	if (pid_need_compute(balance_pid) && climb_first_iteration == false && fabs(initial_angle - MPU6050.KalmanAngleX) > 1.0){
+//		// Read process feedback
+//		climbUp_input = -(MPU6050.KalmanAngleX - initial_angle);
+//		// Compute new PID output value
+//		pid_compute(balance_pid);
+//		//Change actuator value
+//		speed[FRONT_INDEX] = climbUp_output;
+//	}
+//
+//
+//	if (speed[FRONT_INDEX] == 0 && speed[BACK_INDEX] == 0)
+//		emBrakeMotor(0);
+//	else
+//		emBrakeMotor(1);
+//	runMotor(&rearMotor, speed[FRONT_INDEX]);
+//	runMotor(&backMotor, speed[BACK_INDEX]);
+//
+//	speed[FRONT_INDEX] = 0;
+//	speed[BACK_INDEX] = 0;
 
 //---------------------------------------------------------------------------------------------------
 //Final Code
@@ -443,34 +443,34 @@ int main(void)
 //3. Climbing wheel retraction
 //---------------------------------------------------------------------------------------------------
 	//Climbing wheel start landing when button3 is pressed
-//	if (button3.state == 1 && front_touchdown == false && back_touchdown == false && lifting_mode == 0){
-//	    while(front_touchdown == false || back_touchdown == false){
-//	    	//if front touch before back, climbing up process
-//	    	if (back_touchdown == 0 && front_touchdown == 1)
-//	    		lifting_mode = 1;
-//	    	//if back touch before front, climbing down process
-//	    	else if (back_touchdown == 1 && front_touchdown == 0)
-//	    		lifting_mode = 2;
-//
-//	    	if (lifting_mode == 0)
-//	    		initial_angle = exp_angle_filter * MPU6050.KalmanAngleX + (1-exp_angle_filter) * initial_angle;
-//
-//			if (back_touchdown == false)
-//				runMotor(&backMotor, 10);
-//			else
-//				runMotor(&backMotor, 0);
-//
-//			if (front_touchdown == false)
-//				runMotor(&rearMotor, 10);
-//			else
-//				runMotor(&rearMotor, 0);
-//
-//			if (GPIO_Digital_Filtered_Input(&rearLS1, 5) || GPIO_Digital_Filtered_Input(&rearLS2, 5))
-//				front_touchdown = 1;
-//			if (GPIO_Digital_Filtered_Input(&backLS1, 5) || GPIO_Digital_Filtered_Input(&backLS2, 5))
-//				back_touchdown = 1;
-//	    }
-//	}
+	if (button3.state == 1 && front_touchdown == false && back_touchdown == false && lifting_mode == 0){
+	    while(front_touchdown == false || back_touchdown == false){
+	    	//if front touch before back, climbing up process
+	    	if (back_touchdown == 0 && front_touchdown == 1)
+	    		lifting_mode = 1;
+	    	//if back touch before front, climbing down process
+	    	else if (back_touchdown == 1 && front_touchdown == 0)
+	    		lifting_mode = 2;
+
+
+	    	initial_angle = exp_angle_filter * MPU6050.KalmanAngleX + (1-exp_angle_filter) * initial_angle;
+
+			if (back_touchdown == false)
+				runMotor(&backMotor, 10);
+			else
+				runMotor(&backMotor, 0);
+
+			if (front_touchdown == false)
+				runMotor(&rearMotor, 10);
+			else
+				runMotor(&rearMotor, 0);
+
+			if (GPIO_Digital_Filtered_Input(&rearLS1, 5) || GPIO_Digital_Filtered_Input(&rearLS2, 5))
+				front_touchdown = 1;
+			if (GPIO_Digital_Filtered_Input(&backLS1, 5) || GPIO_Digital_Filtered_Input(&backLS2, 5))
+				back_touchdown = 1;
+	    }
+	}
 //
 //	if (lifting_mode == 0){
 //	    //carry out normal wheelchair operation
