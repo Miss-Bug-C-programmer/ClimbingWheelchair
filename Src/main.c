@@ -272,7 +272,7 @@ int main(void)
 //  float speed = 0;
   while (1)
   {
-	//Code to debug with blinking LED
+//Code to debug with blinking LED
 //      if (HAL_GetTick() - debug_prev_time >= 1000){
 //	  if (led_status == 0){
 ////	      count++;
@@ -284,10 +284,9 @@ int main(void)
 //	      led_status = 0;
 //	  }
 //		//Read joystick value
-//
 //      }
 
-	//Debug BD25L
+//Debug BD25L
 //      if(speed>100){
 //	bd25l_Brake(&rearMotor);
 //	bd25l_Brake(&backMotor);
@@ -301,21 +300,17 @@ int main(void)
 //	  HAL_Delay(1000);
 //      }
 
-	//Debug Limit switch
+//Debug Limit switch
 //      rearLS1 = HAL_GPIO_ReadPin(LimitSW1_GPIO_Port, LimitSW1_Pin);
 //      rearLS2 = HAL_GPIO_ReadPin(LimitSW2_GPIO_Port, LimitSW2_Pin);
 //      backLS1 = HAL_GPIO_ReadPin(LimitSW3_GPIO_Port, LimitSW3_Pin);
 //      backLS2 = HAL_GPIO_ReadPin(LimitSW4_GPIO_Port, LimitSW4_Pin);
 //      HAL_Delay(500);
 
-
-
-
 //      //Test speed commands on bse motor
 //      MOTOR_TIM.Instance->RIGHT_MOTOR_CHANNEL -= 50;
 //      MOTOR_TIM.Instance->LEFT_MOTOR_CHANNEL -= 50;
 //      runMotor(&backMotor, 100, 1);
-
 //      runMotor(&backMotor, speed++, 1);
 
     //Loop should execute once every 1 tick
@@ -325,16 +320,6 @@ int main(void)
 
 	//Get kamlan filtered angle from MPU6050
 //	MPU6050_Read_All(&hi2c1, &MPU6050);
-
-
-	GPIO_Digital_Filtered_Input(&button1, 10);
-	GPIO_Digital_Filtered_Input(&button2, 10);
-	GPIO_Digital_Filtered_Input(&button3, 10);
-
-	GPIO_Digital_Filtered_Input(&rearLS1, 5);
-	GPIO_Digital_Filtered_Input(&rearLS2, 5);
-	GPIO_Digital_Filtered_Input(&backLS1, 5);
-	GPIO_Digital_Filtered_Input(&backLS2, 5);
 
 //---------------------------------------------------------------------------------------------------
 //3-button control climbing mechanism
@@ -356,25 +341,11 @@ int main(void)
 //	runMotor(&rearMotor, speed[FRONT_INDEX]);
 //	runMotor(&backMotor, speed[BACK_INDEX]);
 
-	if (button1.state == GPIO_PIN_SET && button3.state == GPIO_PIN_RESET)
-		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
-	else if(button1.state == GPIO_PIN_SET && button3.state == GPIO_PIN_SET)
-		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
-	else if (button1.state == GPIO_PIN_RESET)
-		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
-
-	if(button2.state == GPIO_PIN_SET && button3.state == GPIO_PIN_RESET)
-		HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_SET);
-	else if(button2.state == GPIO_PIN_SET && button3.state == GPIO_PIN_SET)
-		HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_SET);
-	else if (button2.state == GPIO_PIN_RESET)
-		HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);
-
 //---------------------------------------------------------------------------------------------------
 //Testing Climbing Balance Control
 //2-button control
 //---------------------------------------------------------------------------------------------------
-	//Need to put this inside the landing loop
+//Need to put this inside the landing loop
 //	if (climb_first_iteration && speed[FRONT_INDEX] != 0){
 //		initial_angle = exp_angle_filter * MPU6050.KalmanAngleX + (1-exp_angle_filter) * initial_angle ;
 //		if (GPIO_Digital_Filtered_Input(&rearLS1, 5) || GPIO_Digital_Filtered_Input(&rearLS2, 5))
@@ -407,14 +378,13 @@ int main(void)
 //	speed[FRONT_INDEX] = 0;
 //	speed[BACK_INDEX] = 0;
 
-
 //---------------------------------------------------------------------------------------------------
 //Final Code
 //1. Climbing wheel extension
 //2. Wheelchair lifting/dropping
 //3. Climbing wheel retraction
 //---------------------------------------------------------------------------------------------------
-	//Climbing wheel start landing when button3 is pressed
+//Climbing wheel start landing when button3 is pressed
 //	if (button3.state == 1 && front_touchdown == false && back_touchdown == false && lifting_mode == 0){
 //	    while(front_touchdown == false || back_touchdown == false){
 //	    	//if front touch before back, climbing up process
@@ -546,7 +516,7 @@ int main(void)
 //		emBrakeMotor(1);
 //	runMotor(&rearMotor, speed[FRONT_INDEX]);
 //	runMotor(&backMotor, speed[BACK_INDEX]);
-
+//
 //	wheel_Control(&climbWheelSpeed);
 //	send_HubMotor(climbWheelSpeed.cur_l, climbWheelSpeed.cur_r);
 //	climbingForward();
@@ -559,150 +529,117 @@ int main(void)
 //2. Wheelchair lifting/dropping
 //3. Climbing wheel retraction
 //---------------------------------------------------------------------------------------------------
-//	//Climbing wheel start landing when button3 is pressed
-//	if (button3.state == 1 && front_touchdown == false && back_touchdown == false && lifting_mode == 0){
-//
-//	    while(front_touchdown == false || back_touchdown == false){
-//	    	emBrakeMotor(1);
-//	    	//if front touch before back, climbing up process
-//	    	if (back_touchdown == 0 && front_touchdown == 1)
-//	    		lifting_mode = 1;
-//	    	//if back touch before front, climbing down process
-//	    	else if (back_touchdown == 1 && front_touchdown == 0)
-//	    		lifting_mode = 2;
-//
-//	    	initial_angle = exp_angle_filter * MPU6050.KalmanAngleX + (1-exp_angle_filter) * initial_angle;
-//
-//			if (back_touchdown == false)
-//				runMotor(&backMotor, 10);
-//			else
-//				runMotor(&backMotor, 0);
-//
-//			if (front_touchdown == false)
-//				runMotor(&rearMotor, 10);
-//			else
-//				runMotor(&rearMotor, 0);
-//
-//			if (GPIO_Digital_Filtered_Input(&rearLS1, 5) || GPIO_Digital_Filtered_Input(&rearLS2, 5))
-//				front_touchdown = 1;
-//			if (GPIO_Digital_Filtered_Input(&backLS1, 5) || GPIO_Digital_Filtered_Input(&backLS2, 5))
-//				back_touchdown = 1;
-//	    }
-//	    continue;
-//	}
+	//Climbing wheel start landing when button3 is pressed
+	if (GPIO_Digital_Filtered_Input(&button3, 10) && front_touchdown == false && back_touchdown == false && lifting_mode == 0){
+	    while(front_touchdown == false || back_touchdown == false){
+	    	emBrakeMotor(1);
+	    	//if front touch before back, climbing up
+	    	if (back_touchdown == 0 && front_touchdown == 1)
+	    		lifting_mode = 1;
+	    	//if back touch before front, climbing down
+	    	else if (back_touchdown == 1 && front_touchdown == 0)
+	    		lifting_mode = 2;
 
-//	GPIO_Digital_Filtered_Input(&button1, 30);
-//	GPIO_Digital_Filtered_Input(&button2, 30);
-//	GPIO_Digital_Filtered_Input(&button3, 30);
+			if (back_touchdown == false)
+				runMotor(&backMotor, 10);
+			else
+				runMotor(&backMotor, 0);
 
-//	if (lifting_mode == 0){
-//	    //carry out normal wheelchair operation
-//	    wheel_Control(&baseWheelSpeed);
-//	    baseMotorCommand();
-//		if (button1.state == GPIO_PIN_SET && button3.state == GPIO_PIN_RESET)
-//			speed[FRONT_INDEX] = -30;
-////		else if(button1.state == GPIO_PIN_SET && button3.state == GPIO_PIN_SET)
-////			speed[FRONT_INDEX] = -30;
-//		else if (button1.state == GPIO_PIN_RESET)
-//			speed[FRONT_INDEX] = 0;
-//
-//		if(button2.state == GPIO_PIN_SET && button3.state == GPIO_PIN_RESET)
-//			speed[BACK_INDEX] = -30;
-////		else if(button2.state == GPIO_PIN_SET && button3.state == GPIO_PIN_SET)
-////			speed[BACK_INDEX] = -30;
-//		else if (button2.state == GPIO_PIN_RESET)
-//			speed[BACK_INDEX] = 0;
-//		wheel_Control(&climbWheelSpeed);
-//		send_HubMotor(climbWheelSpeed.cur_l, climbWheelSpeed.cur_r);
-//	}
-//	else if (lifting_mode == 1){
-//		//Climbing up process
-//		//1. Lifting the wheelchair by sending same speed to both side
-//		if (button1.state == GPIO_PIN_SET){
-//		    speed[FRONT_INDEX] = 30;
-//			speed[BACK_INDEX] = 30;
-//		}
-//		else{
-//			speed[FRONT_INDEX] = 0;
-//			speed[BACK_INDEX] = 0;
-//		}
-//
-//		//Need a safety check before move forward, can be done using encoder
-//		//3. Then move forward
-//		wheel_Control(&climbWheelSpeed);
-//		send_HubMotor(climbWheelSpeed.cur_l, climbWheelSpeed.cur_r);
-//
-//		if (GPIO_Digital_Filtered_Input(&button3, 10)){
-//			reinitialize();
-//		}
-//
-//		//4. Retract both to initial pos
-//	}
-//
-//	else if (lifting_mode == 2){
-//		//Climbing down process
-//		//1. Lifting the wheelchair by sending same speed to both side
-//		if (button1.state == GPIO_PIN_SET){
-//			speed[FRONT_INDEX] = 30;
-//			speed[BACK_INDEX] = 30;
-//		}
-//		else{
-//			speed[FRONT_INDEX] = 0;
-//			speed[BACK_INDEX] = 0;
-//		}
-//
-//		//Need a safety check before move forward, can be done using encoder
-//		//3. Then move forward
-//		wheel_Control(&climbWheelSpeed);
-//		send_HubMotor(climbWheelSpeed.cur_l, climbWheelSpeed.cur_r);
-//
-//		if (GPIO_Digital_Filtered_Input(&button3, 10)){
-//			reinitialize();
-//		}
-//
-//		//4. Retract both to initial pos
-//	}
+			if (front_touchdown == false)
+				runMotor(&rearMotor, 10);
+			else
+				runMotor(&rearMotor, 0);
 
-//	runMotor(&rearMotor, speed[FRONT_INDEX]);
-//	runMotor(&backMotor, speed[BACK_INDEX]);
+			if (GPIO_Digital_Filtered_Input(&rearLS1, 5) || GPIO_Digital_Filtered_Input(&rearLS2, 5))
+				front_touchdown = 1;
+			if (GPIO_Digital_Filtered_Input(&backLS1, 5) || GPIO_Digital_Filtered_Input(&backLS2, 5))
+				back_touchdown = 1;
+	    }
+	    continue;
+	}
+
+	if (lifting_mode == 0){
+		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(LED2_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
+	    //carry out normal wheelchair operation
+	    wheel_Control(&baseWheelSpeed);
+	    baseMotorCommand();
+		if (button1.state == GPIO_PIN_SET)
+			speed[FRONT_INDEX] = -30;
+		else if (button1.state == GPIO_PIN_RESET)
+			speed[FRONT_INDEX] = 0;
+
+		if(button2.state == GPIO_PIN_SET)
+			speed[BACK_INDEX] = -30;
+		else if (button2.state == GPIO_PIN_RESET)
+			speed[BACK_INDEX] = 0;
+	}
+	else if (lifting_mode == 1){
+		//Climbing up process
+		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(LED2_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
+
+		//1. Lifting the wheelchair by sending same speed to both side
+		if (GPIO_Digital_Filtered_Input(&button1, 10)){
+		    speed[FRONT_INDEX] = 30;
+			speed[BACK_INDEX] = 30;
+		}
+		else{
+			speed[FRONT_INDEX] = 0;
+			speed[BACK_INDEX] = 0;
+		}
+
+		//Need a safety check before move forward, can be done using encoder
+		//3. Then move forward
+		wheel_Control(&climbWheelSpeed);
+		if (climbWheelSpeed.cur_l > 50 && climbWheelSpeed.cur_r > 50)
+			send_HubMotor(410, 410);
+
+		if (GPIO_Digital_Filtered_Input(&button3, 10)){
+			reinitialize();
+		}
+
+		//4. Retract both to initial pos
+	}
+
+	else if (lifting_mode == 2){
+		//Climbing down process
+		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
+		HAL_GPIO_WritePin(LED2_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
+		//1. Lifting the wheelchair by sending same speed to both side
+		if (GPIO_Digital_Filtered_Input(&button2, 10)){
+			speed[FRONT_INDEX] = 30;
+			speed[BACK_INDEX] = 30;
+		}
+		else{
+			speed[FRONT_INDEX] = 0;
+			speed[BACK_INDEX] = 0;
+		}
+
+		//Need a safety check before move forward, can be done using encoder
+		//3. Then move forward
+		wheel_Control(&climbWheelSpeed);
+		if (climbWheelSpeed.cur_l > 50 && climbWheelSpeed.cur_r > 50)
+			send_HubMotor(410, 410);
+
+		if (GPIO_Digital_Filtered_Input(&button3, 10)){
+			reinitialize();
+		}
+
+		//4. Retract both to initial pos
+	}
+
+	runMotor(&rearMotor, speed[FRONT_INDEX]);
+	runMotor(&backMotor, speed[BACK_INDEX]);
 	if (speed[FRONT_INDEX] == 0 && speed[BACK_INDEX] == 0)
 		emBrakeMotor(0);
 	else
 		emBrakeMotor(1);
 
-
 //------------------------------------------------------------------------------------------------------------
 //------------------------------------------------------------------------------------------------------------
-
-//	wheel_Control(&climbWheelSpeed);
-//	send_HubMotor(climbWheelSpeed.cur_l, climbWheelSpeed.cur_r);
-//	climbingForward();
-//	float speed = 6.0/60.0;
-//	send_HubMotor(speed, speed);
-
-
-//	if (rearLS1.state == GPIO_PIN_RESET || rearLS2.state == GPIO_PIN_RESET){
-//	    front_touchdown = 0;
-//	}
-//	else if (rearLS1.state == GPIO_PIN_SET || rearLS2.state == GPIO_PIN_SET){
-//	    front_touchdown = 1;
-//	}
-//
-//	if (backLS1.state == GPIO_PIN_RESET || backLS2.state == GPIO_PIN_RESET){
-//	    back_touchdown = 0;
-//	}
-//	else if (backLS1.state == GPIO_PIN_SET || backLS2.state == GPIO_PIN_SET){
-//	    back_touchdown = 1;
-//	}
-//
-//	//Climbing phase start
-
-
-
 	prev_time = HAL_GetTick();
-
     }
-//	HAL_Delay(10);
 
     /* USER CODE END WHILE */
 

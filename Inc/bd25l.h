@@ -120,7 +120,7 @@ uint8_t readErrorStatus(Motor_TypeDef* motor);
 void runMotor(Motor_TypeDef* motor, float speed);
 
 /** @brief Engage and disengage EM brake
- *  @params motor entity, high stop motor immediately
+ *  @params motor entity, low stop motor immediately
  *  @return Void
  */
 void emBrakeMotor(uint8_t state);
