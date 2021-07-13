@@ -15,7 +15,10 @@ Following header/source file is system generated after their setting being confi
 - tim
 - usart
 
-Tips: Add the code in between the section `/* USER CODE BEGIN XX */` and `/* USER CODE END XX */`. Therefore, if the code regenerated through CubeMX, the code added will be saved.
+Tips: Add the code in between the section 
+- `/* USER CODE BEGIN XX */` and 
+- `/* USER CODE END XX */`
+Therefore, if the code regenerated through CubeMX, the code added will be saved.
 
 ## Usage
 
