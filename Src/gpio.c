@@ -36,6 +36,11 @@
         * Output
         * EVENT_OUT
         * EXTI
+     PA5   ------> SPI1_SCK
+     PA6   ------> SPI1_MISO
+     PB13   ------> SPI2_SCK
+     PB14   ------> SPI2_MISO
+     PB15   ------> SPI2_MOSI
 */
 void MX_GPIO_Init(void)
 {
@@ -98,6 +103,14 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(AD_SPI1_CS_GPIO_Port, &GPIO_InitStruct);
 
+  /*Configure GPIO pins : PAPin PAPin */
+  GPIO_InitStruct.Pin = AD_SPI1_CLK_Pin|AD_SPI1_MISO_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+  GPIO_InitStruct.Alternate = GPIO_AF5_SPI1;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
   /*Configure GPIO pin : PtPin */
   GPIO_InitStruct.Pin = AD_BUSY_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
@@ -119,6 +132,14 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PBPin PBPin PBPin */
+  GPIO_InitStruct.Pin = CUI_SPI2_CLK_Pin|CUI_SPI2_MISO_Pin|CUI_SPI2_MOSI_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+  GPIO_InitStruct.Alternate = GPIO_AF5_SPI2;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PDPin PDPin PDPin PDPin
                            PDPin PDPin */

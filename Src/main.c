@@ -19,9 +19,9 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "can.h"
 #include "dma.h"
 #include "i2c.h"
-#include "spi.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -183,7 +183,7 @@ void reinitialize(void);
 
 /**
   * @brief  The application entry point.
-  * @retval int9
+  * @retval int
   */
 int main(void)
 {
@@ -213,13 +213,13 @@ int main(void)
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_I2C1_Init();
-  MX_SPI1_Init();
-  MX_SPI2_Init();
   MX_TIM1_Init();
   MX_TIM2_Init();
   MX_USART3_UART_Init();
   MX_TIM3_Init();
   MX_TIM8_Init();
+  MX_CAN1_Init();
+  MX_CAN2_Init();
   /* USER CODE BEGIN 2 */
   //Initialize hardware communication
   joystick_Init();
