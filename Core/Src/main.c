@@ -32,7 +32,7 @@
 #include <math.h>
 #include <stdio.h>
 #include "adc.h"
-//#include "encoder.h"
+#include "encoder.h"
 #include "button.h"
 #include "mpu6050.h"
 #include "bd25l.h"
@@ -227,7 +227,7 @@ int main(void)
   joystick_Init();
   ADC_Init();
   ADC_DataRequest();
-//  encoder_Init();
+  ENCODER_Init();
 //  DWT_Init();
   while(MPU6050_Init(&hi2c1)==1);
   HAL_Delay(100);
@@ -724,6 +724,26 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 		  }
 	}
 
+}
+
+void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
+{
+	if (hcan == &hcan1)
+	{
+		HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &RxHeader, incoming);
+		if(incoming[1] == ENC_ADDR_LEFT)
+			ENCODER_Sort_Incoming(incoming, &encoderLeft);
+	}
+}
+
+void HAL_CAN_RxFifo1MsgPendingCallback(CAN_HandleTypeDef *hcan)
+{
+	if (hcan == &hcan2)
+	{
+		HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO1, &RxHeader, incoming);
+		if(incoming[1] == ENC_ADDR_RIGHT)
+			ENCODER_Sort_Incoming(incoming, &encoderRight);
+	}
 }
 
 void baseMotorCommand(void){
