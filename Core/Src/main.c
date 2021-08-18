@@ -742,11 +742,19 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 		HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &canRxHeader, incoming);
 		if(incoming[1] == ENC_ADDR_LEFT)
 			ENCODER_Sort_Incoming(incoming, &encoderLeft);
-		if(incoming[1] == ENC_ADDR_RIGHT)
-					ENCODER_Sort_Incoming(incoming, &encoderRight);
 		ENCODER_Get_Angle(&encoderLeft);
 
 	}
+
+	if (hcan == &hcan2)
+		{
+			HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &canRxHeader, incoming);
+			if(incoming[1] == ENC_ADDR_RIGHT)
+				ENCODER_Sort_Incoming(incoming, &encoderRight);
+
+			ENCODER_Get_Angle(&encoderRight);
+
+		}
 }
 
 void HAL_CAN_RxFifo1MsgPendingCallback(CAN_HandleTypeDef *hcan)
