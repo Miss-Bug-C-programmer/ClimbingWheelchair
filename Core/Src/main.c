@@ -96,12 +96,12 @@ uint8_t retraction_mode = 0;
 uint8_t front_touchdown = false; //Record the state of climbing wheel whether contact with ground
 uint8_t back_touchdown = false;
 //uint8_t lift_dir = 2;	//0 is lifting down, 1 is lifting up
-
+CAN_RxHeaderTypeDef RxHeader;
 
 //Climbing motor
 extern Motor_TypeDef rearMotor, backMotor; //declare in bd25l.c
 float speed[2] = {0}; //range: 0 - 100
-
+EncoderHandle encoderLeft, encoderRight;
 
 //Hub Motor UART receive
 uint8_t receive_buf[15];
@@ -224,43 +224,43 @@ int main(void)
   MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
   //Initialize hardware communication
-  joystick_Init();
-  ADC_Init();
-  ADC_DataRequest();
+//  joystick_Init();
+//  ADC_Init();
+//  ADC_DataRequest();
   ENCODER_Init();
 //  DWT_Init();
-  while(MPU6050_Init(&hi2c1)==1);
+//  while(MPU6050_Init(&hi2c1)==1);
   HAL_Delay(100);
 
   //Start base wheel pwm pin
-  wheelSpeedControl_Init(&baseWheelSpeed, base_linSpeedLevel[base_speedLevel], base_angSpeedLevel[base_speedLevel]);
-  HAL_TIM_Base_Start(&MOTOR_TIM);
-  HAL_TIM_PWM_Start(&MOTOR_TIM, TIM_CHANNEL_1);
-  HAL_TIM_PWM_Start(&MOTOR_TIM, TIM_CHANNEL_2);
-  MOTOR_TIM.Instance->RIGHT_MOTOR_CHANNEL = 1500;
-  MOTOR_TIM.Instance->LEFT_MOTOR_CHANNEL = 1500;
-  HAL_Delay(100);
+//  wheelSpeedControl_Init(&baseWheelSpeed, base_linSpeedLevel[base_speedLevel], base_angSpeedLevel[base_speedLevel]);
+//  HAL_TIM_Base_Start(&MOTOR_TIM);
+//  HAL_TIM_PWM_Start(&MOTOR_TIM, TIM_CHANNEL_1);
+//  HAL_TIM_PWM_Start(&MOTOR_TIM, TIM_CHANNEL_2);
+//  MOTOR_TIM.Instance->RIGHT_MOTOR_CHANNEL = 1500;
+//  MOTOR_TIM.Instance->LEFT_MOTOR_CHANNEL = 1500;
+//  HAL_Delay(100);
 
   //Initialize rear and back motor
-  bd25l_Init(&rearMotor);
-  bd25l_Init(&backMotor);
-  runMotor(&rearMotor, 0);
-  runMotor(&backMotor, 0);
-  emBrakeMotor(1);
+//  bd25l_Init(&rearMotor);
+//  bd25l_Init(&backMotor);
+//  runMotor(&rearMotor, 0);
+//  runMotor(&backMotor, 0);
+//  emBrakeMotor(1);
 
   //Initialize hub motor provdided joystick control
-  hubMotor_Init();
-  wheelSpeedControl_Init(&climbWheelSpeed, climb_linSpeedLevel[climb_speedLevel], climb_angSpeedLevel[climb_speedLevel]);
+//  hubMotor_Init();
+//  wheelSpeedControl_Init(&climbWheelSpeed, climb_linSpeedLevel[climb_speedLevel], climb_angSpeedLevel[climb_speedLevel]);
 
   //Initialize balance controller
   // Prepare PID controller for operation
-  balance_pid = pid_create(&balance_ctrl, &climbUp_input, &climbUp_output, &climbUp_setpoint, climbUp_kp, climbUp_ki, climbUp_kd);
-  // Set controler output limits from 0 to 200
-  pid_limits(balance_pid, -30, 30);
-  //Sample time is 1ms
-  pid_sample(balance_pid, 1);
-  // Allow PID to compute and change output
-  pid_auto(balance_pid);
+//  balance_pid = pid_create(&balance_ctrl, &climbUp_input, &climbUp_output, &climbUp_setpoint, climbUp_kp, climbUp_ki, climbUp_kd);
+//  // Set controler output limits from 0 to 200
+//  pid_limits(balance_pid, -30, 30);
+//  //Sample time is 1ms
+//  pid_sample(balance_pid, 1);
+//  // Allow PID to compute and change output
+//  pid_auto(balance_pid);
 
   /* USER CODE END 2 */
 
@@ -268,26 +268,30 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   uint32_t prev_time = HAL_GetTick();
 
+
+  HAL_Delay(500);
+	ENCODER_Get_Angle(&encoderLeft);
+  	ENCODER_Get_Angle(&encoderRight);
+  	HAL_Delay(500);
   //debug variable
-//  uint32_t debug_prev_time = HAL_GetTick();
-//  uint8_t led_status = 0;
+  uint32_t debug_prev_time = HAL_GetTick();
+  uint8_t led_status = 0;
 //  float speed = 0;
   while (1)
   {
 	//Code to debug with blinking LED
-//      if (HAL_GetTick() - debug_prev_time >= 1000){
-//	  if (led_status == 0){
-////	      count++;
-//	      HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
-//	      led_status = 1;
-//	  }
-//	  else if (led_status == 1){
-//	      HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
-//	      led_status = 0;
-//	  }
-//		//Read joystick value
-//
-//      }
+      if (HAL_GetTick() - debug_prev_time >= 1000){
+	  if (led_status == 0){
+//	      count++;
+	      HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
+	      led_status = 1;
+	  }
+	  else if (led_status == 1){
+	      HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
+	      led_status = 0;
+	  }
+	  debug_prev_time = HAL_GetTick();
+      }
 
 	//Debug BD25L
 //      if(speed>100){
@@ -321,14 +325,15 @@ int main(void)
 //      runMotor(&backMotor, speed++, 1);
 
     //Loop should execute once every 1 tick
-    if(HAL_GetTick() - prev_time >= 1)
+    if(HAL_GetTick() - prev_time >= 100)
     {
-	ADC_DataRequest();
+//	ADC_DataRequest();
+
+    	ENCODER_Get_Angle(&encoderLeft);
+    	ENCODER_Get_Angle(&encoderRight);
 
 	//Get kamlan filtered angle from MPU6050
-	MPU6050_Read_All(&hi2c1, &MPU6050);
-
-
+//	MPU6050_Read_All(&hi2c1, &MPU6050);
 	GPIO_Digital_Filtered_Input(&button1, 30);
 	GPIO_Digital_Filtered_Input(&button2, 30);
 	GPIO_Digital_Filtered_Input(&button3, 30);
@@ -341,22 +346,22 @@ int main(void)
 //---------------------------------------------------------------------------------------------------
 //3-button control climbing mechanism
 //---------------------------------------------------------------------------------------------------
-	if (button1.state == GPIO_PIN_SET && button3.state == GPIO_PIN_RESET)
-	    speed[FRONT_INDEX] = 30;
-	else if(button1.state == GPIO_PIN_SET && button3.state == GPIO_PIN_SET)
-	    speed[FRONT_INDEX] = -30;
-	else if (button1.state == GPIO_PIN_RESET)
-	    speed[FRONT_INDEX] = 0;
-
-	if(button2.state == GPIO_PIN_SET && button3.state == GPIO_PIN_RESET)
-	    speed[BACK_INDEX] = 30;
-	else if(button2.state == GPIO_PIN_SET && button3.state == GPIO_PIN_SET)
-	    speed[BACK_INDEX] = -30;
-	else if (button2.state == GPIO_PIN_RESET)
-	    speed[BACK_INDEX] = 0;
+//	if (button1.state == GPIO_PIN_SET && button3.state == GPIO_PIN_RESET)
+//	    speed[FRONT_INDEX] = 30;
+//	else if(button1.state == GPIO_PIN_SET && button3.state == GPIO_PIN_SET)
+//	    speed[FRONT_INDEX] = -30;
+//	else if (button1.state == GPIO_PIN_RESET)
+//	    speed[FRONT_INDEX] = 0;
 //
-	runMotor(&rearMotor, speed[FRONT_INDEX]);
-	runMotor(&backMotor, speed[BACK_INDEX]);
+//	if(button2.state == GPIO_PIN_SET && button3.state == GPIO_PIN_RESET)
+//	    speed[BACK_INDEX] = 30;
+//	else if(button2.state == GPIO_PIN_SET && button3.state == GPIO_PIN_SET)
+//	    speed[BACK_INDEX] = -30;
+//	else if (button2.state == GPIO_PIN_RESET)
+//	    speed[BACK_INDEX] = 0;
+//
+//	runMotor(&rearMotor, speed[FRONT_INDEX]);
+//	runMotor(&backMotor, speed[BACK_INDEX]);
 
 //---------------------------------------------------------------------------------------------------
 //Testing Climbing Balance Control
@@ -587,8 +592,8 @@ int main(void)
 //	runMotor(&rearMotor, speed[FRONT_INDEX]);
 //	runMotor(&backMotor, speed[BACK_INDEX]);
 
-	wheel_Control(&climbWheelSpeed);
-	send_HubMotor(climbWheelSpeed.cur_l, climbWheelSpeed.cur_r);
+//	wheel_Control(&climbWheelSpeed);
+//	send_HubMotor(climbWheelSpeed.cur_l, climbWheelSpeed.cur_r);
 //	climbingForward();
 //	float speed = 6.0/60.0;
 //	send_HubMotor(speed, speed);
@@ -697,6 +702,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
+	//Hub Encoder callback
 	if (huart->Instance == USART3){
 		//Checksum, make sure that response is correct
 		  uint16_t sum = (uint16_t)receive_buf[0] + (uint16_t)receive_buf[1] + (uint16_t)receive_buf[2] + (uint16_t)receive_buf[3]
@@ -728,21 +734,34 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 {
+	//Left Encoder Callback
+	static CAN_RxHeaderTypeDef canRxHeader;
+	uint8_t incoming[8];
 	if (hcan == &hcan1)
 	{
-		HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &RxHeader, incoming);
+		HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &canRxHeader, incoming);
 		if(incoming[1] == ENC_ADDR_LEFT)
 			ENCODER_Sort_Incoming(incoming, &encoderLeft);
+		if(incoming[1] == ENC_ADDR_RIGHT)
+					ENCODER_Sort_Incoming(incoming, &encoderRight);
+		ENCODER_Get_Angle(&encoderLeft);
+
 	}
 }
 
 void HAL_CAN_RxFifo1MsgPendingCallback(CAN_HandleTypeDef *hcan)
 {
+	static CAN_RxHeaderTypeDef canRxHeader;
+	uint8_t incoming[8];
+	//Right encoder callback
 	if (hcan == &hcan2)
 	{
-		HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO1, &RxHeader, incoming);
+		HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO1, &canRxHeader, incoming);
 		if(incoming[1] == ENC_ADDR_RIGHT)
 			ENCODER_Sort_Incoming(incoming, &encoderRight);
+
+		ENCODER_Get_Angle(&encoderRight);
+
 	}
 }
 

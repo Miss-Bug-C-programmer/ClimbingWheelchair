@@ -5,13 +5,14 @@
 
 #include "encoder.h"
 
+
 EncoderHandle encoderLeft, encoderRight;
 CAN_HandleTypeDef hcan1;
 CAN_HandleTypeDef hcan2;
 CAN_FilterTypeDef canfil_1;
 CAN_FilterTypeDef canfil_2;
-uint8_t incoming[8];
-CAN_RxHeaderTypeDef RxHeader;
+//uint8_t incoming[8];
+//CAN_RxHeaderTypeDef RxHeader;
 
 void ENCODER_Init(void)
 {
@@ -32,7 +33,7 @@ void ENCODER_Init(void)
 	canfil_1.FilterMaskIdHigh = 0x0000;
 	canfil_1.FilterMaskIdLow = 0x0000;
 	canfil_1.FilterFIFOAssignment = CAN_RX_FIFO0;
-	canfil_1.FilterActivation = ENABLE;
+	canfil_1.FilterActivation = CAN_FILTER_ENABLE;
 	canfil_1.SlaveStartFilterBank = 14;
 
 	
@@ -44,11 +45,12 @@ void ENCODER_Init(void)
 	canfil_2.FilterMaskIdHigh = 0x0000;
 	canfil_2.FilterMaskIdLow = 0x0000;
 	canfil_2.FilterFIFOAssignment = CAN_RX_FIFO1;
-	canfil_2.FilterActivation = ENABLE;
+	canfil_2.FilterActivation = CAN_FILTER_ENABLE;
 	canfil_2.SlaveStartFilterBank = 14;
 
-	if(HAL_CAN_ConfigFilter(&hcan1, &canfil_1) != HAL_OK )	return Error_Handler();;
-	if(HAL_CAN_ConfigFilter(&hcan2, &canfil_2) != HAL_OK )	return Error_Handler();;
+	if(HAL_CAN_ConfigFilter(&hcan1, &canfil_1) != HAL_OK )	Error_Handler();
+	if(HAL_CAN_ConfigFilter(&hcan2, &canfil_2) != HAL_OK )	Error_Handler();
+
 }
 
 void ENCODER_Sort_Incoming(uint8_t* incoming_array, EncoderHandle* Encoder_ptr){
@@ -68,6 +70,7 @@ void ENCODER_Set_TxHeader(EncoderHandle* Encoder_ptr, uint32_t Encoder_Address){
 	Encoder_ptr->canTxHeader.RTR = CAN_RTR_DATA;
 	Encoder_ptr->canTxHeader.StdId = Encoder_Address;
 	Encoder_ptr->canTxHeader.TransmitGlobalTime = DISABLE;
+	Encoder_ptr->canTxHeader.ExtId = 0;
 }
 
 void ENCODER_Read(EncoderHandle* Encoder_ptr){
@@ -76,6 +79,15 @@ void ENCODER_Read(EncoderHandle* Encoder_ptr){
 	Encoder_ptr->sendData[2] = 0x01;
 	Encoder_ptr->sendData[3] = 0x00;
 	
+	HAL_CAN_AddTxMessage(Encoder_ptr->hcan, &(Encoder_ptr->canTxHeader), Encoder_ptr->sendData, &(Encoder_ptr->canMailbox));
+}
+
+void ENCODER_SetBaudRate(EncoderHandle* Encoder_ptr){
+	Encoder_ptr->sendData[0] = Encoder_ptr->canTxHeader.DLC;
+	Encoder_ptr->sendData[1] = Encoder_ptr->canTxHeader.StdId;
+	Encoder_ptr->sendData[2] = 0x03;
+	Encoder_ptr->sendData[3] = 0x01;
+
 	HAL_CAN_AddTxMessage(Encoder_ptr->hcan, &(Encoder_ptr->canTxHeader), Encoder_ptr->sendData, &(Encoder_ptr->canMailbox));
 }
 

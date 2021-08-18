@@ -7,9 +7,11 @@
 #define MRBA3_ENCODER_H
 
 #define ENC_ADDR_RIGHT		1U
-#define ENC_ADDR_LEFT		2U
+#define ENC_ADDR_LEFT		1U
 
 #include "stm32f4xx_hal.h"
+#include "can.h"
+#include "main.h"
 
 union UInt32UInt8
 {
@@ -47,6 +49,8 @@ void ENCODER_Get_Angle(EncoderHandle* Encoder_ptr);
 void ENCODER_Set_ZeroPosition(EncoderHandle* Encoder_ptr);
 
 void ENCODER_Get_AllAngles(void);
+
+void ENCODER_SetBaudRate(EncoderHandle* Encoder_ptr);
 
 extern EncoderHandle encoderLeft, encoderRight;
 extern CAN_FilterTypeDef canfil_1;
