@@ -6,7 +6,7 @@
 #ifndef MRBA3_ENCODER_H
 #define MRBA3_ENCODER_H
 
-#define ENC_ADDR_RIGHT		1U
+#define ENC_ADDR_RIGHT		2U
 #define ENC_ADDR_LEFT		1U
 
 #include "stm32f4xx_hal.h"

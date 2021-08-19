@@ -18,7 +18,7 @@ void ENCODER_Init(void)
 {
   //Assign each encoder to one of the two CAN buses
 	encoderLeft.hcan = &hcan1;
-	encoderRight.hcan = &hcan2;
+	encoderRight.hcan = &hcan1;
 	
 	//Set Tx header for each encoder handle
 	ENCODER_Set_TxHeader(&encoderLeft, ENC_ADDR_LEFT);

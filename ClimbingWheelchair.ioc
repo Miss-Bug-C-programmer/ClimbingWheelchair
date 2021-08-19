@@ -114,6 +114,7 @@ MxCube.Version=6.0.1
 MxDb.Version=DB.6.0.0
 NVIC.BusFault_IRQn=true\:0\:0\:false\:false\:true\:false\:false
 NVIC.CAN1_RX0_IRQn=true\:0\:0\:false\:false\:true\:true\:true
+NVIC.CAN2_RX0_IRQn=true\:0\:0\:false\:false\:true\:true\:true
 NVIC.CAN2_RX1_IRQn=true\:0\:0\:false\:false\:true\:true\:true
 NVIC.DMA1_Stream1_IRQn=true\:0\:0\:false\:false\:true\:false\:true
 NVIC.DebugMonitor_IRQn=true\:0\:0\:false\:false\:true\:false\:false

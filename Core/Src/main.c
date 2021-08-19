@@ -329,8 +329,8 @@ int main(void)
     {
 //	ADC_DataRequest();
 
-    	ENCODER_Get_Angle(&encoderLeft);
-    	ENCODER_Get_Angle(&encoderRight);
+//    	ENCODER_Get_Angle(&encoderLeft);
+//    	ENCODER_Get_Angle(&encoderRight);
 
 	//Get kamlan filtered angle from MPU6050
 //	MPU6050_Read_All(&hi2c1, &MPU6050);
@@ -740,9 +740,14 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 	if (hcan == &hcan1)
 	{
 		HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &canRxHeader, incoming);
-		if(incoming[1] == ENC_ADDR_LEFT)
+		if(incoming[1] == ENC_ADDR_LEFT){
 			ENCODER_Sort_Incoming(incoming, &encoderLeft);
 		ENCODER_Get_Angle(&encoderLeft);
+		}
+		if(incoming[1] == ENC_ADDR_RIGHT){
+						ENCODER_Sort_Incoming(incoming, &encoderRight);
+
+					ENCODER_Get_Angle(&encoderRight);}
 
 	}
 
@@ -771,6 +776,15 @@ void HAL_CAN_RxFifo1MsgPendingCallback(CAN_HandleTypeDef *hcan)
 		ENCODER_Get_Angle(&encoderRight);
 
 	}
+
+	if (hcan == &hcan1)
+		{
+			HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &canRxHeader, incoming);
+			if(incoming[1] == ENC_ADDR_LEFT)
+				ENCODER_Sort_Incoming(incoming, &encoderLeft);
+			ENCODER_Get_Angle(&encoderLeft);
+
+		}
 }
 
 void baseMotorCommand(void){

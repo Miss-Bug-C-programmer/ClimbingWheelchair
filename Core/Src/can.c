@@ -73,7 +73,7 @@ void MX_CAN2_Init(void)
 }
 
 static uint32_t HAL_RCC_CAN1_CLK_ENABLED=0;
-
+static uint32_t HAL_RCC_CAN2_CLK_ENABLED=0;
 void HAL_CAN_MspInit(CAN_HandleTypeDef* canHandle)
 {
 
@@ -114,10 +114,10 @@ void HAL_CAN_MspInit(CAN_HandleTypeDef* canHandle)
 
   /* USER CODE END CAN2_MspInit 0 */
     /* CAN2 clock enable */
-    __HAL_RCC_CAN2_CLK_ENABLE();
-    HAL_RCC_CAN1_CLK_ENABLED++;
-    if(HAL_RCC_CAN1_CLK_ENABLED==1){
-      __HAL_RCC_CAN1_CLK_ENABLE();
+//    __HAL_RCC_CAN2_CLK_ENABLE();
+    HAL_RCC_CAN2_CLK_ENABLED++;
+    if(HAL_RCC_CAN2_CLK_ENABLED==1){
+      __HAL_RCC_CAN2_CLK_ENABLE();
     }
 
     __HAL_RCC_GPIOB_CLK_ENABLE();
@@ -133,15 +133,19 @@ void HAL_CAN_MspInit(CAN_HandleTypeDef* canHandle)
     HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
     /* CAN2 interrupt Init */
+    HAL_NVIC_SetPriority(CAN2_RX0_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(CAN2_RX0_IRQn);
     HAL_NVIC_SetPriority(CAN2_RX1_IRQn, 0, 0);
     HAL_NVIC_EnableIRQ(CAN2_RX1_IRQn);
   /* USER CODE BEGIN CAN2_MspInit 1 */
     HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING);
+    HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO1_MSG_PENDING);
     HAL_CAN_ActivateNotification(&hcan1, CAN_IT_TX_MAILBOX_EMPTY);
+    HAL_CAN_Start(&hcan1);
 
+    HAL_CAN_ActivateNotification(&hcan2, CAN_IT_RX_FIFO0_MSG_PENDING);
     HAL_CAN_ActivateNotification(&hcan2, CAN_IT_RX_FIFO1_MSG_PENDING);
-
-	HAL_CAN_Start(&hcan1);
+    HAL_CAN_ActivateNotification(&hcan1, CAN_IT_TX_MAILBOX_EMPTY);
 	HAL_CAN_Start(&hcan2);
   /* USER CODE END CAN2_MspInit 1 */
   }
@@ -192,6 +196,7 @@ void HAL_CAN_MspDeInit(CAN_HandleTypeDef* canHandle)
     HAL_GPIO_DeInit(GPIOB, GPIO_PIN_5|GPIO_PIN_6);
 
     /* CAN2 interrupt Deinit */
+    HAL_NVIC_DisableIRQ(CAN2_RX0_IRQn);
     HAL_NVIC_DisableIRQ(CAN2_RX1_IRQn);
   /* USER CODE BEGIN CAN2_MspDeInit 1 */
 
