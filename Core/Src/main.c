@@ -220,7 +220,6 @@ int main(void)
   MX_TIM3_Init();
   MX_TIM8_Init();
   MX_CAN1_Init();
-  MX_CAN2_Init();
   MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
   //Initialize hardware communication
@@ -325,12 +324,9 @@ int main(void)
 //      runMotor(&backMotor, speed++, 1);
 
     //Loop should execute once every 1 tick
-    if(HAL_GetTick() - prev_time >= 100)
+    if(HAL_GetTick() - prev_time >= 1)
     {
 //	ADC_DataRequest();
-
-//    	ENCODER_Get_Angle(&encoderLeft);
-//    	ENCODER_Get_Angle(&encoderRight);
 
 	//Get kamlan filtered angle from MPU6050
 //	MPU6050_Read_All(&hi2c1, &MPU6050);
@@ -711,7 +707,6 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 		  		+ (uint16_t)receive_buf[10] + (uint16_t)receive_buf[11] + (uint16_t)receive_buf[12]
 		  		+ (uint16_t)receive_buf[13];
 		  if ((uint8_t)sum == receive_buf[14]){
-		//      && receive_buf[4] == 0x00
 			  //Encoder Feedback
 		      if (receive_buf[0] == 0xAA && receive_buf[1] == 0xA4 && receive_buf[3] == 0x00 ){
 		    	  hub_encoder_feedback.encoder_1 = 	(receive_buf[9] << 24) + (receive_buf[8] << 16) +
@@ -724,9 +719,6 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 		    		  first_encoder_callback = false;
 		    	  }
 		      }
-		      //Velcity feedback
-//		      if (receive_buf[0] == 0xAA && receive_buf[1] == 0xA4 && receive_buf[3] == 0x83 ){
-//				}
 		  }
 	}
 
@@ -742,50 +734,17 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 		HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &canRxHeader, incoming);
 		if(incoming[1] == ENC_ADDR_LEFT){
 			ENCODER_Sort_Incoming(incoming, &encoderLeft);
-		ENCODER_Get_Angle(&encoderLeft);
+			ENCODER_Get_Angle(&encoderLeft);
 		}
 		if(incoming[1] == ENC_ADDR_RIGHT){
-						ENCODER_Sort_Incoming(incoming, &encoderRight);
-
-					ENCODER_Get_Angle(&encoderRight);}
-
-	}
-
-	if (hcan == &hcan2)
-		{
-			HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &canRxHeader, incoming);
-			if(incoming[1] == ENC_ADDR_RIGHT)
-				ENCODER_Sort_Incoming(incoming, &encoderRight);
-
-			ENCODER_Get_Angle(&encoderRight);
-
-		}
-}
-
-void HAL_CAN_RxFifo1MsgPendingCallback(CAN_HandleTypeDef *hcan)
-{
-	static CAN_RxHeaderTypeDef canRxHeader;
-	uint8_t incoming[8];
-	//Right encoder callback
-	if (hcan == &hcan2)
-	{
-		HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO1, &canRxHeader, incoming);
-		if(incoming[1] == ENC_ADDR_RIGHT)
 			ENCODER_Sort_Incoming(incoming, &encoderRight);
-
-		ENCODER_Get_Angle(&encoderRight);
+			ENCODER_Get_Angle(&encoderRight);
+		}
 
 	}
 
-	if (hcan == &hcan1)
-		{
-			HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &canRxHeader, incoming);
-			if(incoming[1] == ENC_ADDR_LEFT)
-				ENCODER_Sort_Incoming(incoming, &encoderLeft);
-			ENCODER_Get_Angle(&encoderLeft);
-
-		}
 }
+
 
 void baseMotorCommand(void){
   MOTOR_TIM.Instance->RIGHT_MOTOR_CHANNEL = (int)baseWheelSpeed.cur_r  + 1500;
