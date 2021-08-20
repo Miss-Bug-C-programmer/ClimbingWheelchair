@@ -8,6 +8,8 @@
 #include "X2_6010S.h"
 extern uint8_t receive_buf[15];
 
+
+
 void hubMotor_Init(){
 	HAL_GPIO_WritePin(HubM_IO_SON_GPIO_Port, HubM_IO_SON_Pin, GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(HubM_IO_NOT_GPIO_Port, HubM_IO_NOT_Pin, GPIO_PIN_RESET);
@@ -16,10 +18,11 @@ void hubMotor_Init(){
 
 void send_HubMotor(float m1_speed, float m2_speed){
 	int16_t motor1_speed, motor2_speed;
-//	motor1_speed = -(int16_t)(m1_speed * 4096.0);
-//	motor2_speed = (int16_t)(m2_speed * 4096.0);
-	motor1_speed = -(int16_t)(m1_speed);
-	motor2_speed = (int16_t)(m2_speed);
+	//convert velocity into pulse/second
+	motor1_speed = -(int16_t)(m1_speed * 4096.0 / (M_PI * HUB_DIAMETER));
+	motor2_speed = (int16_t)(m2_speed * 4096.0/ (M_PI * HUB_DIAMETER));
+//	motor1_speed = -(int16_t)(m1_speed);
+//	motor2_speed = (int16_t)(m2_speed);
 
 	uint8_t send_buf[15];
 	send_buf[0] = 0xAA;

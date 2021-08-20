@@ -22,6 +22,8 @@
 #define X2_6010S_H
 
 #include "stm32f4xx_hal.h"
+#include <math.h>
+#include "main.h"
 
 extern UART_HandleTypeDef huart3;
 extern DMA_HandleTypeDef hdma_usart3_rx;
@@ -65,7 +67,7 @@ void hubMotor_Stop();
 /**
   * @brief send speed command to Hub motor
   * Need add HAL_DMA_RECEIVE_CPT_CALLBACK to receive message
-  * @param -32000 to 32000
+  * @param velocity
   * @retval None
   */
 void send_HubMotor(float m1_speed, float m2_speed);

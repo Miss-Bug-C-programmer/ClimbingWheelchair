@@ -173,9 +173,7 @@ void Error_Handler(void);
 #define BASE_WIDTH 		0.5
 
 #define BASE_LENGTH		0.9
-
-#define HUB_DIAMETER	0.12
-
+#define HUB_DIAMETER  0.5
 
 
 /* USER CODE END Private defines */

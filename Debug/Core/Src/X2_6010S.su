@@ -1,2 +1,2 @@
-X2_6010S.c:11:6:hubMotor_Init	8	static
-X2_6010S.c:17:6:send_HubMotor	56	static
+X2_6010S.c:13:6:hubMotor_Init	8	static
+X2_6010S.c:19:6:send_HubMotor	56	static

@@ -73,8 +73,13 @@ typedef struct{
 /* USER CODE BEGIN PM */
 const float CLIMBING_LEG_LENGTH = 0.12; //in m, measured from the pivot to the center of hub motor
 const float BASE_HEIGHT = 0.9;
-const uint32_t MAX_FRONT_ENC_POS = 900;
 
+//ALLOWABLE is the maximum pos the climbing wheel can turn
+//FRONT_CLIMBING is the pos that the base above the climbing wheel w
+const uint32_t MAX_FRONT_ALLOWABLE_ENC = 900;
+const uint32_t MAX_FRONT_CLIMBING_ENC = 900;
+const uint32_t MAX_BACK_ALLOWABLE_ENC = 900;
+const uint32_t MAX_BACK_CLIMBING_ENC = 900;
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -106,6 +111,10 @@ float   curb_height = 0; //store curb height
 extern Motor_TypeDef rearMotor, backMotor; //declare in bd25l.c
 float speed[2] = {0}; //range: 0 - 100
 EncoderHandle encoderLeft, encoderRight;
+float prev_angle_tick = 0;
+float prev_angle = 0;
+float hub_speed = 0;
+
 
 //Hub Motor UART receive
 uint8_t receive_buf[15];
@@ -178,6 +187,7 @@ float climbUp_input = 0, climbUp_output = 0;
 float climbUp_setpoint = 0;
 float climbUp_kp = 15.0, climbUp_ki = 0.5, climbUp_kd = 0.1;
 
+//
 
 int state;
 /* USER CODE END PV */
@@ -505,24 +515,27 @@ int main(void)
 			if (lifting_mode == 0){
 				wheel_Control(&baseWheelSpeed);
 				baseMotorCommand();
-				wheel_Control(&climbWheelSpeed);
 			}
 
 			//Climbing up process
 			else if (lifting_mode == 1){
-				//Move front wheel
-				//lift the front climbing wheel up until it reach it maximum pos
+				//1. lift the front climbing wheel up until it reach it maximum pos
+				//The process is controlled by PID on the front climbing wheel
 				//the maximum pos is when the climbing wheel is below the wheelchair base
-				//	-Can use a PID to control the front lifting wheel to make sure it do not exceed the max pos allowed.
-				//2. In the meanwhile, use another PID to make sure the wheelchair is balance.
-				//3.
+				if (pid_need_compute(climbUp_pid) && fabs(MAX_FRONT_CLIMBING_ENC - encoderLeft.angleDeg) > 10){
+					// Read process feedback
+					climbUp_input = (MAX_FRONT_CLIMBING_ENC - encoderLeft.angleDeg);
+					// Compute new PID output value
+					pid_compute(climbUp_pid);
+					//Change actuator value
+					speed[FRONT_INDEX] = climbUp_output;
+				}
+				else speed[FRONT_INDEX] = 0;
 
-				//Variable need to be added
-				//- maximum encoder position allowed
-				//- PID for climbing
-				//2. In the mean while, the back wheel will balance the robot
+				//2. In the meanwhile, use another PID to make sure the wheelchair is balance
+				//By controlling the back wheel
 				// Check if need to compute PID
-				if (pid_need_compute(balance_pid) && fabs(initial_angle - MPU6050.KalmanAngleX) > 1.0){
+				if (pid_need_compute(balance_pid) && fabs(initial_angle - MPU6050.KalmanAngleX) > 1.0 && fabs(MAX_BACK_ALLOWABLE_ENC - encoderRight.angleDeg) > 10){
 					// Read process feedback
 					balance_input = (MPU6050.KalmanAngleX - initial_angle);
 					// Compute new PID output value
@@ -530,6 +543,25 @@ int main(void)
 					//Change actuator value
 					speed[BACK_INDEX] = balance_output;
 				}
+				else speed[BACK_INDEX] = 0;
+
+				runMotor(&rearMotor, speed[FRONT_INDEX]);
+				runMotor(&backMotor, speed[BACK_INDEX]);
+
+				//3. During lifting, due to fixed point at the back climbing wheel.
+				//The wheelchair would be pulled back if the back wheel not traveling while the its lifting
+				//Therefore, lifting of back wheel and hub motor need to work at the same time to make sure the wheelchair is not moving back.
+				//Pull back of wheelchair would cause the front climbing wheel to slip from the curb
+				if (speed[BACK_INDEX] != 0){
+					double dt = (HAL_GetTick() - prev_angle_tick) / (float) FREQUENCY;
+					hub_speed = - CLIMBING_LEG_LENGTH * (prev_angle - encoderRight.angleDeg) * cos(encoderRight.angleDeg) / dt; //unit: m/s,
+					//Convert hub speed into pulse/second
+					send_HubMotor(hub_speed, hub_speed);
+				}
+				else send_HubMotor(0, 0);
+
+
+
 
 
 			}
@@ -594,18 +626,23 @@ int main(void)
 			//
 			//	}
 
-			//	if (speed[FRONT_INDEX] == 0 && speed[BACK_INDEX] == 0)
-			//		emBrakeMotor(0);
-			//	else
-			//		emBrakeMotor(1);
-			//	runMotor(&rearMotor, speed[FRONT_INDEX]);
-			//	runMotor(&backMotor, speed[BACK_INDEX]);
 
-			//	wheel_Control(&climbWheelSpeed);
-			//	send_HubMotor(climbWheelSpeed.cur_l, climbWheelSpeed.cur_r);
-			//	climbingForward();
-			//	float speed = 6.0/60.0;
-			//	send_HubMotor(speed, speed);
+				if (speed[FRONT_INDEX] == 0 && speed[BACK_INDEX] == 0)
+					emBrakeMotor(0);
+				else
+					emBrakeMotor(1);
+				runMotor(&rearMotor, speed[FRONT_INDEX]);
+				runMotor(&backMotor, speed[BACK_INDEX]);
+
+				//store prev_angle for climbing Up mechanism
+				prev_angle = encoderRight.angleDeg;
+				prev_angle_tick = HAL_GetTick();
+
+//				wheel_Control(&climbWheelSpeed);
+//				send_HubMotor(climbWheelSpeed.cur_l, climbWheelSpeed.cur_r);
+//				climbingForward();
+//				float speed = 6.0/60.0;
+//				send_HubMotor(speed, speed);
 
 
 
@@ -763,6 +800,9 @@ void baseMotorCommand(void){
 	MOTOR_TIM.Instance->RIGHT_MOTOR_CHANNEL = (int)baseWheelSpeed.cur_r  + 1500;
 	MOTOR_TIM.Instance->LEFT_MOTOR_CHANNEL = (int)baseWheelSpeed.cur_l + 1500;
 }
+
+
+
 
 //Move forward during climbing process
 void climbingForward(float dist){
