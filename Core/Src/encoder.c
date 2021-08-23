@@ -97,7 +97,9 @@ void ENCODER_Get_Angle(EncoderHandle* Encoder_ptr){
 	Encoder_ptr->angle32Bit.b8[1] = Encoder_ptr->rawRead[4];
 	Encoder_ptr->angle32Bit.b8[2] = Encoder_ptr->rawRead[5];
 	Encoder_ptr->angle32Bit.b8[3] = Encoder_ptr->rawRead[6];
-	Encoder_ptr->angleDeg = (Encoder_ptr->rawRead[3] + Encoder_ptr->rawRead[4]*0x100 + Encoder_ptr->rawRead[5]*0x10000)*360/0x1000;
+	Encoder_ptr->angleDeg = (Encoder_ptr->rawRead[3] + Encoder_ptr->rawRead[4]*0x100 + Encoder_ptr->rawRead[5]*0x10000)*360/0x1000; //Get encoder angle
+
+	Encoder_ptr->encoder_pos = (Encoder_ptr->rawRead[3] + Encoder_ptr->rawRead[4] << 8 + Encoder_ptr->rawRead[5] << 16) % 4096; //Get single turn encoder reading
 }
 
 void ENCODER_Set_ZeroPosition(EncoderHandle* Encoder_ptr){

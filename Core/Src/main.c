@@ -522,9 +522,9 @@ int main(void)
 				//1. lift the front climbing wheel up until it reach it maximum pos
 				//The process is controlled by PID on the front climbing wheel
 				//the maximum pos is when the climbing wheel is below the wheelchair base
-				if (pid_need_compute(climbUp_pid) && fabs(MAX_FRONT_CLIMBING_ENC - encoderLeft.angleDeg) > 10){
+				if (pid_need_compute(climbUp_pid) && fabs(MAX_FRONT_CLIMBING_ENC - encoderLeft.encoder_pos) > 10){
 					// Read process feedback
-					climbUp_input = (MAX_FRONT_CLIMBING_ENC - encoderLeft.angleDeg);
+					climbUp_input = (MAX_FRONT_CLIMBING_ENC - encoderLeft.encoder_pos);
 					// Compute new PID output value
 					pid_compute(climbUp_pid);
 					//Change actuator value
@@ -535,7 +535,7 @@ int main(void)
 				//2. In the meanwhile, use another PID to make sure the wheelchair is balance
 				//By controlling the back wheel
 				// Check if need to compute PID
-				if (pid_need_compute(balance_pid) && fabs(initial_angle - MPU6050.KalmanAngleX) > 1.0 && fabs(MAX_BACK_ALLOWABLE_ENC - encoderRight.angleDeg) > 10){
+				if (pid_need_compute(balance_pid) && fabs(initial_angle - MPU6050.KalmanAngleX) > 1.0 && fabs(MAX_BACK_ALLOWABLE_ENC - encoderRight.encoder_pos) > 10){
 					// Read process feedback
 					balance_input = (MPU6050.KalmanAngleX - initial_angle);
 					// Compute new PID output value
@@ -631,8 +631,8 @@ int main(void)
 					emBrakeMotor(0);
 				else
 					emBrakeMotor(1);
-				runMotor(&rearMotor, speed[FRONT_INDEX]);
-				runMotor(&backMotor, speed[BACK_INDEX]);
+//				runMotor(&rearMotor, speed[FRONT_INDEX]);
+//				runMotor(&backMotor, speed[BACK_INDEX]);
 
 				//store prev_angle for climbing Up mechanism
 				prev_angle = encoderRight.angleDeg;
