@@ -9,8 +9,6 @@
 EncoderHandle encoderLeft, encoderRight;
 CAN_HandleTypeDef hcan1;
 CAN_HandleTypeDef hcan2;
-CAN_FilterTypeDef canfil_1;
-CAN_FilterTypeDef canfil_2;
 //uint8_t incoming[8];
 //CAN_RxHeaderTypeDef RxHeader;
 
@@ -23,33 +21,6 @@ void ENCODER_Init(void)
 	//Set Tx header for each encoder handle
 	ENCODER_Set_TxHeader(&encoderLeft, ENC_ADDR_LEFT);
 	ENCODER_Set_TxHeader(&encoderRight, ENC_ADDR_RIGHT);
-	 
-	//Filter Config - FIFO1 is assigned to hcan1_right and FIFO1 is assigned to hcan2_left
-	canfil_1.FilterBank = 0;
-	canfil_1.FilterMode = CAN_FILTERMODE_IDMASK;
-	canfil_1.FilterScale = CAN_FILTERSCALE_32BIT;
-	canfil_1.FilterIdHigh = 0x0000;
-	canfil_1.FilterIdLow = 0x0000;
-	canfil_1.FilterMaskIdHigh = 0x0000;
-	canfil_1.FilterMaskIdLow = 0x0000;
-	canfil_1.FilterFIFOAssignment = CAN_RX_FIFO0;
-	canfil_1.FilterActivation = CAN_FILTER_ENABLE;
-	canfil_1.SlaveStartFilterBank = 14;
-
-	
-	canfil_2.FilterBank = 14;
-	canfil_2.FilterMode = CAN_FILTERMODE_IDMASK;
-	canfil_2.FilterScale = CAN_FILTERSCALE_32BIT;
-	canfil_2.FilterIdHigh = 0x0000;
-	canfil_2.FilterIdLow = 0x0000;
-	canfil_2.FilterMaskIdHigh = 0x0000;
-	canfil_2.FilterMaskIdLow = 0x0000;
-	canfil_2.FilterFIFOAssignment = CAN_RX_FIFO1;
-	canfil_2.FilterActivation = CAN_FILTER_ENABLE;
-	canfil_2.SlaveStartFilterBank = 14;
-
-	if(HAL_CAN_ConfigFilter(&hcan1, &canfil_1) != HAL_OK )	Error_Handler();
-	if(HAL_CAN_ConfigFilter(&hcan2, &canfil_2) != HAL_OK )	Error_Handler();
 
 }
 
@@ -97,9 +68,15 @@ void ENCODER_Get_Angle(EncoderHandle* Encoder_ptr){
 	Encoder_ptr->angle32Bit.b8[1] = Encoder_ptr->rawRead[4];
 	Encoder_ptr->angle32Bit.b8[2] = Encoder_ptr->rawRead[5];
 	Encoder_ptr->angle32Bit.b8[3] = Encoder_ptr->rawRead[6];
-	Encoder_ptr->angleDeg = (Encoder_ptr->rawRead[3] + Encoder_ptr->rawRead[4]*0x100 + Encoder_ptr->rawRead[5]*0x10000)*360/0x1000; //Get encoder angle
 
-	Encoder_ptr->encoder_pos = (Encoder_ptr->rawRead[3] + Encoder_ptr->rawRead[4] << 8 + Encoder_ptr->rawRead[5] << 16) % 4096; //Get single turn encoder reading
+	//Get the outer gear encoder position
+	//Gear ration from inner to outer gear is 1:2. Therefore, (2*4096=)8192 is used
+	Encoder_ptr->encoder_pos = (Encoder_ptr->rawRead[3] + (Encoder_ptr->rawRead[4] << 8) + (Encoder_ptr->rawRead[5] << 16)) ; //Get single turn encoder reading
+//	Encoder_ptr->encoder_pos = 8192 - (Encoder_ptr->rawRead[3] + (Encoder_ptr->rawRead[4] << 8) + (Encoder_ptr->rawRead[5] << 16)) % 8192; //Get single turn encoder reading
+
+	//Convert from encoder position to angle in degree
+//	Encoder_ptr->angleDeg = (Encoder_ptr->encoder_pos * 360 /8192) ; //Get encoder angle
+
 }
 
 void ENCODER_Set_ZeroPosition(EncoderHandle* Encoder_ptr){
