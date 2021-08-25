@@ -77,6 +77,7 @@ const float BASE_HEIGHT = 0.9;
 //ALLOWABLE is the maximum pos the climbing wheel can turn
 //FRONT_CLIMBING is the pos that the base above the climbing wheel w
 const uint32_t MAX_FRONT_ALLOWABLE_ENC = 3000;
+const uint32_t MIN_FRONT_ALLOWABLE_ENC = 10;
 const uint32_t MAX_FRONT_CLIMBING_ENC = 2048;
 const uint32_t MAX_BACK_ALLOWABLE_ENC = 900;
 const uint32_t MAX_BACK_CLIMBING_ENC = 900;
@@ -180,7 +181,7 @@ PID_t balance_pid;
 // PID for climbing up
 float balance_input = 0, balance_output = 0;
 float balance_setpoint = 0;
-float balance_kp = 15.0, balance_ki = 0.5, balance_kd = 0.1;
+float balance_kp = 15.0, balance_ki = 0.5, balance_kd = 0.01;
 
 //Climbing Up Control
 uint32_t curr_enc_position = 0;
@@ -191,7 +192,7 @@ PID_t climbUp_pid;
 // PID for climbing up
 float climbUp_input = 0, climbUp_output = 0;
 float climbUp_setpoint = 0;
-float climbUp_kp = 1.0, climbUp_ki = 0.5, climbUp_kd = 0.1;
+float climbUp_kp = 0.07, climbUp_ki = 0.001, climbUp_kd = 0.00008;
 
 //
 
@@ -294,7 +295,7 @@ int main(void)
 	// Prepare PID controller for operation
 	climbUp_pid = pid_create(&climbUp_ctrl, &climbUp_input, &climbUp_output, &climbUp_setpoint, climbUp_kp, climbUp_ki, climbUp_kd);
 	// Set controler output limits from 0 to 200
-	pid_limits(climbUp_pid, -30, 30);
+	pid_limits(climbUp_pid, -50, 50);
 	//Sample time is 1ms
 	pid_sample(climbUp_pid, 1);
 	// Allow PID to compute and change output
@@ -410,11 +411,13 @@ int main(void)
 				if (state == TEST) state = NORMAL;
 				else if (state == NORMAL) state = TEST;
 			}
-
+//			 && fabs(MAX_FRONT_CLIMBING_ENC - encoderRight.encoder_pos) > 30
 			if (state == TEST){
-				if (pid_need_compute(climbUp_pid) && fabs(MAX_FRONT_CLIMBING_ENC - encoderRight.encoder_pos) > 30){
+				if (pid_need_compute(climbUp_pid) && fabs(MAX_FRONT_CLIMBING_ENC - encoderRight.encoder_pos) > 10
+						&& encoderRight.encoder_pos < MAX_FRONT_ALLOWABLE_ENC && encoderRight.encoder_pos > MIN_FRONT_ALLOWABLE_ENC){
 					// Read process feedback
-					climbUp_input = (float)(encoderRight.encoder_pos  - MAX_FRONT_CLIMBING_ENC);
+					climbUp_setpoint = MAX_FRONT_CLIMBING_ENC;
+					climbUp_input = encoderRight.encoder_pos;
 					// Compute new PID output value
 					pid_compute(climbUp_pid);
 					//Change actuator value
@@ -431,6 +434,7 @@ int main(void)
 					speed[FRONT_INDEX] = -30;
 				else if (button1.state == GPIO_PIN_RESET)
 					speed[FRONT_INDEX] = 0;
+				pid_reset(climbUp_pid);
 			}
 			runMotor(&rearMotor, speed[FRONT_INDEX]);
 

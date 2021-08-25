@@ -183,6 +183,8 @@ extern "C" {
 	 */
 	void pid_direction(PID_t pid, enum pid_control_directions dir);
 
+	void pid_reset(PID_t pid);
+
 #ifdef	__cplusplus
 }
 #endif
