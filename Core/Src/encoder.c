@@ -72,7 +72,7 @@ void ENCODER_Get_Angle(EncoderHandle* Encoder_ptr){
 	//Get the outer gear encoder position
 	//Gear ration from inner to outer gear is 1:2. Therefore, (2*4096=)8192 is used
 //	Encoder_ptr->encoder_pos = (Encoder_ptr->rawRead[3] + (Encoder_ptr->rawRead[4] << 8) + (Encoder_ptr->rawRead[5] << 16)) ; //Get single turn encoder reading
-	Encoder_ptr->encoder_pos = 8192 - (Encoder_ptr->rawRead[3] + (Encoder_ptr->rawRead[4] << 8) + (Encoder_ptr->rawRead[5] << 16)) % 8192; //Get single turn encoder reading
+	Encoder_ptr->encoder_pos = (Encoder_ptr->rawRead[3] + (Encoder_ptr->rawRead[4] << 8) + (Encoder_ptr->rawRead[5] << 16)); //Get single turn encoder reading
 
 	//Convert from encoder position to angle in degree
 //	Encoder_ptr->angleDeg = (Encoder_ptr->encoder_pos * 360 /8192) ; //Get encoder angle

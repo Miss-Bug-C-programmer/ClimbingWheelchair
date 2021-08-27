@@ -1,22 +1,22 @@
 /* USER CODE BEGIN Header */
 /**
-  ******************************************************************************
-  * @file           : main.h
-  * @brief          : Header for main.c file.
-  *                   This file contains the common defines of the application.
-  ******************************************************************************
-  * @attention
-  *
-  * <h2><center>&copy; Copyright (c) 2021 STMicroelectronics.
-  * All rights reserved.</center></h2>
-  *
-  * This software component is licensed by ST under BSD 3-Clause license,
-  * the "License"; You may not use this file except in compliance with the
-  * License. You may obtain a copy of the License at:
-  *                        opensource.org/licenses/BSD-3-Clause
-  *
-  ******************************************************************************
-  */
+ ******************************************************************************
+ * @file           : main.h
+ * @brief          : Header for main.c file.
+ *                   This file contains the common defines of the application.
+ ******************************************************************************
+ * @attention
+ *
+ * <h2><center>&copy; Copyright (c) 2021 STMicroelectronics.
+ * All rights reserved.</center></h2>
+ *
+ * This software component is licensed by ST under BSD 3-Clause license,
+ * the "License"; You may not use this file except in compliance with the
+ * License. You may obtain a copy of the License at:
+ *                        opensource.org/licenses/BSD-3-Clause
+ *
+ ******************************************************************************
+ */
 /* USER CODE END Header */
 
 /* Define to prevent recursive inclusion -------------------------------------*/
@@ -37,10 +37,9 @@ extern "C" {
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
-typedef enum{
-  false,
-  true
-}bool;
+typedef enum {
+	false, true
+} bool;
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/
@@ -163,19 +162,24 @@ void Error_Handler(void);
 //Therefore, s/ticks = 1/(FREQUENCY)
 #define FREQUENCY 1000
 
-#define LEFT_INDEX 		0
-#define RIGHT_INDEX 		1
-#define FRONT_INDEX		0
-#define BACK_INDEX		1
+#define LEFT_INDEX 					0
+#define RIGHT_INDEX 				1
+#define FRONT_INDEX					0
+#define BACK_INDEX					1
 
-#define WHEEL_DIA		0.25
-#define WHEEL_ACC_LIMIT		10.0
-#define BASE_WIDTH 		0.5
+#define WHEEL_DIA					0.25
+#define WHEEL_ACC_LIMIT				10.0
+#define BASE_WIDTH 					0.5
 
-#define BASE_LENGTH		0.9
-#define HUB_DIAMETER  0.5
+#define BASE_LENGTH					0.9
 
+#define HUB_DIAMETER  				0.123
+#define FRONT_CLIMB_WHEEL_DIAMETER  0.125
+#define INNER_ARM_LENGTH			0.16
+#define OUTER_ARM_LENGTH 			0.24
 
+#define FRONT_GEAR_RATIO			2.2
+#define BACK_GEAR_RATIO				2
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus
