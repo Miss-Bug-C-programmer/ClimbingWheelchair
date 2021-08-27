@@ -74,6 +74,15 @@ enum Mode {
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+//Limit Switches & Tactile Switches
+Button_TypeDef rearLS1 = { .gpioPort = LimitSW1_GPIO_Port, .gpioPin = LimitSW1_Pin };
+Button_TypeDef rearLS2 = { .gpioPort = LimitSW2_GPIO_Port, .gpioPin = LimitSW2_Pin };
+Button_TypeDef backLS1 = { .gpioPort = LimitSW3_GPIO_Port, .gpioPin = LimitSW3_Pin };
+Button_TypeDef backLS2 = { .gpioPort = LimitSW4_GPIO_Port, .gpioPin = LimitSW4_Pin };
+Button_TypeDef button1 = { .gpioPort = Button1_GPIO_Port, .gpioPin = Button1_Pin };
+Button_TypeDef button2 = { .gpioPort = Button2_GPIO_Port, .gpioPin = Button2_Pin };
+Button_TypeDef button3 = { .gpioPort = Button3_GPIO_Port, .gpioPin = Button3_Pin };
+
 //Joystick/ADC
 int16_t adc_rawData[8];
 uint32_t prev_adc_time = 0;
@@ -94,48 +103,11 @@ uint8_t retraction_mode = 0;
 uint8_t front_touchdown = false; //Record the state of climbing wheel whether contact with ground
 uint8_t back_touchdown = false;
 
-float curb_height = 0; //store curb height
 
-//Climbing motor
-extern Motor_TypeDef rearMotor, backMotor; //declare in bd25l.c
-float speed[2] = { 0 }; //range: 0 - 100
-EncoderHandle encoderBack, encoderFront;
-float prev_angle_tick = 0;
-float prev_angle = 0;
-float hub_speed = 0;
 
-//Hub Motor UART receive
-uint8_t receive_buf[15];
-Encoder_Feedback hub_encoder_feedback;
-Encoder_Feedback prev_hub_encoder_feedback;
-uint8_t first_encoder_callback = true;
-WheelSpeed climbWheelSpeed = { .accel_loop = 100.0f, .decel_loop = 200.0f,
-		.left_speed_step = 5.0, .right_speed_step = 5.0 };
-const float climb_linSpeedLevel[3] = { 1000.0f, 3000.0f, 4000.0f };
-const float climb_angSpeedLevel[3] = { 500.0f, 1500.0f, 2000.0f };
-int climb_speedLevel = 0; //change the speed level if need higher speed
-
-float forward_distance = BASE_LENGTH; // (in meter) distance to travel during climbing process by hub
-
-//Limit Switches
-Button_TypeDef rearLS1 = { .gpioPort = LimitSW1_GPIO_Port, .gpioPin =
-LimitSW1_Pin };
-Button_TypeDef rearLS2 = { .gpioPort = LimitSW2_GPIO_Port, .gpioPin =
-LimitSW2_Pin };
-Button_TypeDef backLS1 = { .gpioPort = LimitSW3_GPIO_Port, .gpioPin =
-LimitSW3_Pin };
-Button_TypeDef backLS2 = { .gpioPort = LimitSW4_GPIO_Port, .gpioPin =
-LimitSW4_Pin };
-
-//Tactile Switches
-Button_TypeDef button1 =
-		{ .gpioPort = Button1_GPIO_Port, .gpioPin = Button1_Pin };
-Button_TypeDef button2 =
-		{ .gpioPort = Button2_GPIO_Port, .gpioPin = Button2_Pin };
-Button_TypeDef button3 =
-		{ .gpioPort = Button3_GPIO_Port, .gpioPin = Button3_Pin };
-
-//Balance Mechanism
+//-----------------------------------------------------------------------------------------------
+//Balance Control
+//-----------------------------------------------------------------------------------------------
 MPU6050_t MPU6050;
 double initial_angle = 0;
 double exp_angle_filter = 0.8;
@@ -144,12 +116,19 @@ uint8_t climb_first_iteration = true;
 //Balance control
 struct pid_controller balance_ctrl;
 PID_t balance_pid;
-
-//climbUp is for lifting up mode
-// PID for climbing up
 float balance_input = 0, balance_output = 0;
 float balance_setpoint = 0;
 float balance_kp = 15.0, balance_ki = 0.5, balance_kd = 0.01;
+
+//-----------------------------------------------------------------------------------------------
+//Climbing Position Control
+//-----------------------------------------------------------------------------------------------
+//Climbing landing motor
+extern Motor_TypeDef rearMotor, backMotor; //declare in bd25l.c
+float speed[2] = { 0 }; //range: 0 - 100
+EncoderHandle encoderBack, encoderFront;
+float prev_angle_tick = 0;
+float prev_angle = 0;
 
 //Front Climbing Position Control
 struct pid_controller frontClimb_ctrl;
@@ -165,8 +144,32 @@ float backClimb_input = 0, backClimb_output = 0;
 float backClimb_setpoint = 0;
 float backClimb_kp = 0.07, backClimb_ki = 0.001, backClimb_kd = 0.00008;
 
+float curb_height = 0; //store curb height
+
+//-----------------------------------------------------------------------------------------------
+//Climbing Forward Control
+//-----------------------------------------------------------------------------------------------
+//Hub Motor UART receive
+uint8_t receive_buf[15];
+Encoder_Feedback hub_encoder_feedback;
+Encoder_Feedback prev_hub_encoder_feedback;
+uint8_t first_encoder_callback = true;
+//ClimbWheel need to be removed after fully automated
+WheelSpeed climbWheelSpeed = { .accel_loop = 100.0f, .decel_loop = 200.0f,
+		.left_speed_step = 5.0, .right_speed_step = 5.0 };
+const float climb_linSpeedLevel[3] = { 1000.0f, 3000.0f, 4000.0f };
+const float climb_angSpeedLevel[3] = { 500.0f, 1500.0f, 2000.0f };
+int climb_speedLevel = 0; //change the speed level if need higher speed
+
+float climbForward_speed = 0;
+float forward_distance = BASE_LENGTH; // (in meter) distance to travel during climbing process by hub
+
+//-----------------------------------------------------------------------------------------------
+//Debug Test
+//-----------------------------------------------------------------------------------------------
 enum Mode state = NORMAL;
 int state_count = 0;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -175,7 +178,7 @@ void SystemClock_Config(void);
 void baseMotorCommand(void);
 void climbingForward(float dist);
 void reinitialize(void);
-//void front_goto_pos(uint32_t enc);
+void front_goto_pos(uint32_t enc);
 void front_goto_posX(uint32_t enc, PID_t pid_t);
 /* USER CODE END PFP */
 
@@ -232,7 +235,7 @@ int main(void) {
 //	while(MPU6050_Init(&hi2c1)==1);
 	HAL_Delay(100);
 
-	//Start base wheel pwm pin
+	//Start base wheel PWM pin
 	wheelSpeedControl_Init(&baseWheelSpeed, base_linSpeedLevel[base_speedLevel],
 			base_angSpeedLevel[base_speedLevel]);
 	HAL_TIM_Base_Start(&MOTOR_TIM);
@@ -249,7 +252,7 @@ int main(void) {
 	runMotor(&backMotor, 0);
 	emBrakeMotor(1);
 //
-	//Initialize hub motor provdided joystick control
+	//Initialize hub motor provided joystick control
 	hubMotor_Init();
 	wheelSpeedControl_Init(&climbWheelSpeed,
 			climb_linSpeedLevel[climb_speedLevel],
@@ -259,13 +262,12 @@ int main(void) {
 	// Prepare PID controller for operation
 	balance_pid = pid_create(&balance_ctrl, &balance_input, &balance_output,
 			&balance_setpoint, balance_kp, balance_ki, balance_kd);
-	// Set controler output limits from 0 to 200
+	// Set controller output limits from 0 to 200
 	pid_limits(balance_pid, -30, 30);
 	//Sample time is 1ms
 	pid_sample(balance_pid, 1);
 	// Allow PID to compute and change output
 	pid_auto(balance_pid);
-
 
 	//Initialize front and back climbing position controller
 	frontClimb_pid = pid_create(&frontClimb_ctrl, &frontClimb_input,
@@ -276,8 +278,8 @@ int main(void) {
 	pid_auto(frontClimb_pid);
 
 	frontClimb_pid = pid_create(&backClimb_ctrl, &backClimb_input,
-			&backClimb_output, &backClimb_setpoint, backClimb_kp,
-			backClimb_ki, backClimb_kd);
+			&backClimb_output, &backClimb_setpoint, backClimb_kp, backClimb_ki,
+			backClimb_kd);
 	pid_limits(backClimb_pid, -50, 50);
 	pid_sample(backClimb_pid, 1);
 	pid_auto(backClimb_pid);
@@ -587,9 +589,9 @@ int main(void) {
 //				//Pull back of wheelchair would cause the front climbing wheel to slip from the curb
 //				if (speed[BACK_INDEX] != 0){
 //					double dt = (HAL_GetTick() - prev_angle_tick) / (float) FREQUENCY;
-//					hub_speed = - CLIMBING_LEG_LENGTH * (prev_angle - encoderFront.angleDeg) * cos(encoderFront.angleDeg) / dt; //unit: m/s,
+//					climbForward_speed = - CLIMBING_LEG_LENGTH * (prev_angle - encoderFront.angleDeg) * cos(encoderFront.angleDeg) / dt; //unit: m/s,
 //					//Convert hub speed into pulse/second
-//					send_HubMotor(hub_speed, hub_speed);
+//					send_HubMotor(climbForward_speed, climbForward_speed);
 //				}
 //				else send_HubMotor(0, 0);
 //
@@ -813,24 +815,16 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan) {
 			//TODO: Process the angle and GR
 			//4096 is encoder single turn value
 			//Need to check the encoder value in the correct direction
-			encoderBack.encoder_pos = (uint32_t) (4096 * FRONT_GEAR_RATIO)
-					- encoderBack.encoder_pos
-							% (uint32_t) (4096 * BACK_GEAR_RATIO);
-			encoderBack.angleDeg = encoderBack.encoder_pos
-					/ (uint32_t) (4096 * BACK_GEAR_RATIO) * 360;
+			encoderBack.encoder_pos = (uint32_t) (4096 * FRONT_GEAR_RATIO) - encoderBack.encoder_pos % (uint32_t) (4096 * BACK_GEAR_RATIO);
+			encoderBack.angleDeg = (float)encoderBack.encoder_pos / (4096 * BACK_GEAR_RATIO) * 360 + 36.587;
 		}
 		if (incoming[1] == ENC_ADDR_RIGHT) {
 			ENCODER_Sort_Incoming(incoming, &encoderFront);
 			ENCODER_Get_Angle(&encoderFront);
-			encoderFront.encoder_pos = (uint32_t) (4096 * FRONT_GEAR_RATIO)
-					- encoderFront.encoder_pos
-							% (uint32_t) (4096 * FRONT_GEAR_RATIO);
-			encoderFront.angleDeg = (encoderFront.encoder_pos
-					/ (uint32_t) (4096 * FRONT_GEAR_RATIO) * 360) + 38;
+			encoderFront.encoder_pos = (uint32_t) (4096 * FRONT_GEAR_RATIO) - encoderFront.encoder_pos % (uint32_t) (4096 * FRONT_GEAR_RATIO);
+			encoderFront.angleDeg = (float)encoderFront.encoder_pos / (4096 * FRONT_GEAR_RATIO) * 360 + 36.587;
 		}
-
 	}
-
 }
 
 void baseMotorCommand(void) {
@@ -886,38 +880,37 @@ void front_goto_pos(uint32_t enc) {
 void goto_pos(uint32_t enc, PID_t pid_t) {
 //	&& encoderFront.encoder_pos >= MIN_FRONT_ALLOWABLE_ENC 	&& cur_enc_pos <= MAX_FRONT_ALLOWABLE_ENC
 	int cur_enc_pos;
-	if (pid_t == frontClimb_pid){
+	if (pid_t == frontClimb_pid) {
 		cur_enc_pos = (int) encoderFront.encoder_pos;
 		if (pid_need_compute(frontClimb_pid) && fabs(enc - cur_enc_pos) > 10) {
-				// Read process feedback
-				if (cur_enc_pos > MAX_FRONT_ALLOWABLE_ENC)
-					cur_enc_pos -= 4096 * FRONT_GEAR_RATIO;
-				frontClimb_setpoint = enc;
-				frontClimb_input = cur_enc_pos;
-				// Compute new PID output value
-				pid_compute(frontClimb_pid);
-				//Change actuator value
-				speed[FRONT_INDEX] = frontClimb_output;
-			} else {
-				speed[FRONT_INDEX] = 0;
-			}
-	}
-	else if (pid_t == backClimb_pid){
-			cur_enc_pos = (int) encoderBack.encoder_pos;
-			if (pid_need_compute(backClimb_pid) && fabs(enc - cur_enc_pos) > 10) {
-					// Read process feedback
-					if (cur_enc_pos > MAX_BACK_ALLOWABLE_ENC)
-						cur_enc_pos -= 4096 * BACK_GEAR_RATIO;
-					backClimb_setpoint = enc;
-					backClimb_input = cur_enc_pos;
-					// Compute new PID output value
-					pid_compute(backClimb_pid);
-					//Change actuator value
-					speed[BACK_INDEX] = backClimb_output;
-				} else {
-					speed[BACK_INDEX] = 0;
-				}
+			// Read process feedback
+			if (cur_enc_pos > MAX_FRONT_ALLOWABLE_ENC)
+				cur_enc_pos -= 4096 * FRONT_GEAR_RATIO;
+			frontClimb_setpoint = enc;
+			frontClimb_input = cur_enc_pos;
+			// Compute new PID output value
+			pid_compute(frontClimb_pid);
+			//Change actuator value
+			speed[FRONT_INDEX] = frontClimb_output;
+		} else {
+			speed[FRONT_INDEX] = 0;
 		}
+	} else if (pid_t == backClimb_pid) {
+		cur_enc_pos = (int) encoderBack.encoder_pos;
+		if (pid_need_compute(backClimb_pid) && fabs(enc - cur_enc_pos) > 10) {
+			// Read process feedback
+			if (cur_enc_pos > MAX_BACK_ALLOWABLE_ENC)
+				cur_enc_pos -= 4096 * BACK_GEAR_RATIO;
+			backClimb_setpoint = enc;
+			backClimb_input = cur_enc_pos;
+			// Compute new PID output value
+			pid_compute(backClimb_pid);
+			//Change actuator value
+			speed[BACK_INDEX] = backClimb_output;
+		} else {
+			speed[BACK_INDEX] = 0;
+		}
+	}
 }
 
 /* USER CODE END 4 */

@@ -26,7 +26,7 @@ typedef struct
   CAN_TxHeaderTypeDef canTxHeader;
   uint32_t canMailbox;
   union UInt32UInt8 angle32Bit;
-  uint32_t angleDeg;
+  float angleDeg;
   uint32_t encoder_pos;
   uint8_t sendData[4];
   uint8_t rawRead[8];
