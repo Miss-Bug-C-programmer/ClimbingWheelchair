@@ -135,7 +135,7 @@ Button_TypeDef button2 =
 Button_TypeDef button3 =
 		{ .gpioPort = Button3_GPIO_Port, .gpioPin = Button3_Pin };
 
-//Sensor
+//Balance Mechanism
 MPU6050_t MPU6050;
 double initial_angle = 0;
 double exp_angle_filter = 0.8;
