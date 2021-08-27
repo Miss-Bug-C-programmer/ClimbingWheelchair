@@ -44,29 +44,13 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-typedef struct {
-	double x;
-	double y;
-	const int16_t MAX_Y;
-	const int16_t MID_Y;
-	const int16_t MIN_Y;
 
-	const int16_t MAX_X;
-	const int16_t MIN_X;
-	const int16_t MID_X;
-
-} Joystick_Def;
-
-//typedef Joystick_Def * joy;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
-
-#define ADC_CHANNEL hspi1
-
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -115,7 +99,7 @@ float curb_height = 0; //store curb height
 //Climbing motor
 extern Motor_TypeDef rearMotor, backMotor; //declare in bd25l.c
 float speed[2] = { 0 }; //range: 0 - 100
-EncoderHandle encoderLeft, encoderRight;
+EncoderHandle encoderBack, encoderFront;
 float prev_angle_tick = 0;
 float prev_angle = 0;
 float hub_speed = 0;
@@ -303,11 +287,11 @@ int main(void) {
 	/* Infinite loop */
 	/* USER CODE BEGIN WHILE */
 	uint32_t prev_time = HAL_GetTick();
-	ENCODER_Get_Angle(&encoderLeft);
-	ENCODER_Get_Angle(&encoderRight);
+	ENCODER_Get_Angle(&encoderBack);
+	ENCODER_Get_Angle(&encoderFront);
 	//Reset encoder position
-//	ENCODER_Set_ZeroPosition(&encoderLeft);
-//	ENCODER_Set_ZeroPosition(&encoderRight);
+//	ENCODER_Set_ZeroPosition(&encoderBack);
+//	ENCODER_Set_ZeroPosition(&encoderFront);
 	HAL_Delay(500);
 	//debug variable
 	uint32_t debug_prev_time = HAL_GetTick();
@@ -353,14 +337,14 @@ int main(void) {
 		//      MOTOR_TIM.Instance->LEFT_MOTOR_CHANNEL -= 50;
 		//      runMotor(&backMotor, 100, 1);
 
-		//      runMotor(&backMotor, speed++, 1);
-//		ENCODER_Get_Angle(&encoderLeft);
-//		ENCODER_Get_Angle(&encoderRight);
+		//      runMotor(&backMotor, speed++, 1);xia
+//		ENCODER_Get_Angle(&encoderBack);
+//		ENCODER_Get_Angle(&encoderFront);
 		//Loop should execute once every 1 tick
 		if (HAL_GetTick() - prev_time >= 1) {
 			//	ADC_DataRequest();
-			ENCODER_Read(&encoderLeft);
-			ENCODER_Read(&encoderRight);
+			ENCODER_Read(&encoderBack);
+			ENCODER_Read(&encoderFront);
 
 			//Get kamlan filtered angle from MPU6050
 			//	MPU6050_Read_All(&hi2c1, &MPU6050);
@@ -408,17 +392,17 @@ int main(void) {
 				} else if (state == NORMAL)
 					state = TEST;
 			}
-//			 && fabs(MAX_FRONT_CLIMBING_ENC - encoderRight.encoder_pos) > 30
+//			 && fabs(MAX_FRONT_CLIMBING_ENC - encoderFront.encoder_pos) > 30
 			if (state == TEST) {
 //				if (pid_need_compute(frontClimb_pid)
 //						&& fabs(
 //								MAX_FRONT_CLIMBING_ENC
-//										- encoderRight.encoder_pos) > 10
-//						&& encoderRight.encoder_pos < MAX_FRONT_ALLOWABLE_ENC
-//						&& encoderRight.encoder_pos > MIN_FRONT_ALLOWABLE_ENC) {
+//										- encoderFront.encoder_pos) > 10
+//						&& encoderFront.encoder_pos < MAX_FRONT_ALLOWABLE_ENC
+//						&& encoderFront.encoder_pos > MIN_FRONT_ALLOWABLE_ENC) {
 //					// Read process feedback
 //					frontClimb_setpoint = MAX_FRONT_CLIMBING_ENC;
-//					frontClimb_input = encoderRight.encoder_pos;
+//					frontClimb_input = encoderFront.encoder_pos;
 //					// Compute new PID output value
 //					pid_compute(frontClimb_pid);
 //					//Change actuator value
@@ -556,7 +540,7 @@ int main(void) {
 //				}
 //
 //				//If curb_height is positive, should be climbing up process and vice versa
-//				curb_height = CLIMBING_LEG_LENGTH * cos(encoderLeft.angleDeg) + BASE_HEIGHT;
+//				curb_height = CLIMBING_LEG_LENGTH * cos(encoderBack.angleDeg) + BASE_HEIGHT;
 //
 //			}
 //
@@ -571,9 +555,9 @@ int main(void) {
 //				//1. lift the front climbing wheel up until it reach it maximum pos
 //				//The process is controlled by PID on the front climbing wheel
 //				//the maximum pos is when the climbing wheel is below the wheelchair base
-//				if (pid_need_compute(frontClimb_pid) && fabs(MAX_FRONT_CLIMBING_ENC - encoderLeft.encoder_pos) > 10){
+//				if (pid_need_compute(frontClimb_pid) && fabs(MAX_FRONT_CLIMBING_ENC - encoderBack.encoder_pos) > 10){
 //					// Read process feedback
-//					frontClimb_input = (MAX_FRONT_CLIMBING_ENC - encoderLeft.encoder_pos);
+//					frontClimb_input = (MAX_FRONT_CLIMBING_ENC - encoderBack.encoder_pos);
 //					// Compute new PID output value
 //					pid_compute(frontClimb_pid);
 //					//Change actuator value
@@ -584,7 +568,7 @@ int main(void) {
 //				//2. In the meanwhile, use another PID to make sure the wheelchair is balance
 //				//By controlling the back wheel
 //				// Check if need to compute PID
-//				if (pid_need_compute(balance_pid) && fabs(initial_angle - MPU6050.KalmanAngleX) > 1.0 && fabs(MAX_BACK_ALLOWABLE_ENC - encoderRight.encoder_pos) > 10){
+//				if (pid_need_compute(balance_pid) && fabs(initial_angle - MPU6050.KalmanAngleX) > 1.0 && fabs(MAX_BACK_ALLOWABLE_ENC - encoderFront.encoder_pos) > 10){
 //					// Read process feedback
 //					balance_input = (MPU6050.KalmanAngleX - initial_angle);
 //					// Compute new PID output value
@@ -603,7 +587,7 @@ int main(void) {
 //				//Pull back of wheelchair would cause the front climbing wheel to slip from the curb
 //				if (speed[BACK_INDEX] != 0){
 //					double dt = (HAL_GetTick() - prev_angle_tick) / (float) FREQUENCY;
-//					hub_speed = - CLIMBING_LEG_LENGTH * (prev_angle - encoderRight.angleDeg) * cos(encoderRight.angleDeg) / dt; //unit: m/s,
+//					hub_speed = - CLIMBING_LEG_LENGTH * (prev_angle - encoderFront.angleDeg) * cos(encoderFront.angleDeg) / dt; //unit: m/s,
 //					//Convert hub speed into pulse/second
 //					send_HubMotor(hub_speed, hub_speed);
 //				}
@@ -683,7 +667,7 @@ int main(void) {
 			runMotor(&backMotor, speed[BACK_INDEX]);
 
 			//store prev_angle for climbing Up mechanism
-//				prev_angle = encoderRight.angleDeg;
+//				prev_angle = encoderFront.angleDeg;
 //				prev_angle_tick = HAL_GetTick();
 
 //				wheel_Control(&climbWheelSpeed);
@@ -777,7 +761,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 			prev_adc_time = HAL_GetTick();
 		}
 	}
-
 		break;
 	default:
 		break;
@@ -825,24 +808,24 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan) {
 	if (hcan == &hcan1) {
 		HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &canRxHeader, incoming);
 		if (incoming[1] == ENC_ADDR_LEFT) {
-			ENCODER_Sort_Incoming(incoming, &encoderLeft);
-			ENCODER_Get_Angle(&encoderLeft);
+			ENCODER_Sort_Incoming(incoming, &encoderBack);
+			ENCODER_Get_Angle(&encoderBack);
 			//TODO: Process the angle and GR
 			//4096 is encoder single turn value
 			//Need to check the encoder value in the correct direction
-			encoderLeft.encoder_pos = (uint32_t) (4096 * FRONT_GEAR_RATIO)
-					- encoderLeft.encoder_pos
+			encoderBack.encoder_pos = (uint32_t) (4096 * FRONT_GEAR_RATIO)
+					- encoderBack.encoder_pos
 							% (uint32_t) (4096 * BACK_GEAR_RATIO);
-			encoderLeft.angleDeg = encoderLeft.encoder_pos
+			encoderBack.angleDeg = encoderBack.encoder_pos
 					/ (uint32_t) (4096 * BACK_GEAR_RATIO) * 360;
 		}
 		if (incoming[1] == ENC_ADDR_RIGHT) {
-			ENCODER_Sort_Incoming(incoming, &encoderRight);
-			ENCODER_Get_Angle(&encoderRight);
-			encoderRight.encoder_pos = (uint32_t) (4096 * FRONT_GEAR_RATIO)
-					- encoderRight.encoder_pos
+			ENCODER_Sort_Incoming(incoming, &encoderFront);
+			ENCODER_Get_Angle(&encoderFront);
+			encoderFront.encoder_pos = (uint32_t) (4096 * FRONT_GEAR_RATIO)
+					- encoderFront.encoder_pos
 							% (uint32_t) (4096 * FRONT_GEAR_RATIO);
-			encoderRight.angleDeg = (encoderRight.encoder_pos
+			encoderFront.angleDeg = (encoderFront.encoder_pos
 					/ (uint32_t) (4096 * FRONT_GEAR_RATIO) * 360) + 38;
 		}
 
@@ -882,8 +865,8 @@ void reinitialize(void) {
 }
 
 void front_goto_pos(uint32_t enc) {
-//	&& encoderRight.encoder_pos >= MIN_FRONT_ALLOWABLE_ENC 	&& cur_enc_pos <= MAX_FRONT_ALLOWABLE_ENC
-	int cur_enc_pos = (int) encoderRight.encoder_pos;
+//	&& encoderFront.encoder_pos >= MIN_FRONT_ALLOWABLE_ENC 	&& cur_enc_pos <= MAX_FRONT_ALLOWABLE_ENC
+	int cur_enc_pos = (int) encoderFront.encoder_pos;
 	if (pid_need_compute(frontClimb_pid) && fabs(enc - cur_enc_pos) > 10) {
 		// Read process feedback
 		if (cur_enc_pos > MAX_FRONT_ALLOWABLE_ENC)
@@ -901,10 +884,10 @@ void front_goto_pos(uint32_t enc) {
 }
 
 void goto_pos(uint32_t enc, PID_t pid_t) {
-//	&& encoderRight.encoder_pos >= MIN_FRONT_ALLOWABLE_ENC 	&& cur_enc_pos <= MAX_FRONT_ALLOWABLE_ENC
+//	&& encoderFront.encoder_pos >= MIN_FRONT_ALLOWABLE_ENC 	&& cur_enc_pos <= MAX_FRONT_ALLOWABLE_ENC
 	int cur_enc_pos;
 	if (pid_t == frontClimb_pid){
-		cur_enc_pos = (int) encoderRight.encoder_pos;
+		cur_enc_pos = (int) encoderFront.encoder_pos;
 		if (pid_need_compute(frontClimb_pid) && fabs(enc - cur_enc_pos) > 10) {
 				// Read process feedback
 				if (cur_enc_pos > MAX_FRONT_ALLOWABLE_ENC)
@@ -920,7 +903,7 @@ void goto_pos(uint32_t enc, PID_t pid_t) {
 			}
 	}
 	else if (pid_t == backClimb_pid){
-			cur_enc_pos = (int) encoderLeft.encoder_pos;
+			cur_enc_pos = (int) encoderBack.encoder_pos;
 			if (pid_need_compute(backClimb_pid) && fabs(enc - cur_enc_pos) > 10) {
 					// Read process feedback
 					if (cur_enc_pos > MAX_BACK_ALLOWABLE_ENC)
