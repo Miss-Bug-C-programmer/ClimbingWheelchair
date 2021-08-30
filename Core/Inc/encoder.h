@@ -53,7 +53,7 @@ void ENCODER_Get_AllAngles(void);
 
 void ENCODER_SetBaudRate(EncoderHandle* Encoder_ptr);
 
-extern EncoderHandle encoderLeft, encoderRight;
+extern EncoderHandle encoderBack, encoderFront;
 extern CAN_FilterTypeDef canfil_1;
 extern CAN_FilterTypeDef canfil_2;
 

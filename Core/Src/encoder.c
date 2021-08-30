@@ -6,7 +6,7 @@
 #include "encoder.h"
 
 
-EncoderHandle encoderLeft, encoderRight;
+EncoderHandle encoderBack, encoderFront;
 CAN_HandleTypeDef hcan1;
 CAN_HandleTypeDef hcan2;
 //uint8_t incoming[8];
@@ -15,12 +15,12 @@ CAN_HandleTypeDef hcan2;
 void ENCODER_Init(void)
 {
   //Assign each encoder to one of the two CAN buses
-	encoderLeft.hcan = &hcan1;
-	encoderRight.hcan = &hcan1;
+	encoderBack.hcan = &hcan1;
+	encoderFront.hcan = &hcan1;
 	
 	//Set Tx header for each encoder handle
-	ENCODER_Set_TxHeader(&encoderLeft, ENC_ADDR_LEFT);
-	ENCODER_Set_TxHeader(&encoderRight, ENC_ADDR_RIGHT);
+	ENCODER_Set_TxHeader(&encoderBack, ENC_ADDR_LEFT);
+	ENCODER_Set_TxHeader(&encoderFront, ENC_ADDR_RIGHT);
 
 }
 
@@ -90,6 +90,6 @@ void ENCODER_Set_ZeroPosition(EncoderHandle* Encoder_ptr){
 }
 
 void ENCODER_Get_AllAngles(void){
-	ENCODER_Get_Angle(&encoderLeft);
-	ENCODER_Get_Angle(&encoderRight);
+	ENCODER_Get_Angle(&encoderBack);
+	ENCODER_Get_Angle(&encoderFront);
 }
