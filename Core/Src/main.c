@@ -122,14 +122,14 @@ struct pid_controller frontBalance_ctrl;
 PID_t frontBalance_pid;
 float frontBalance_input = 0, frontBalance_output = 0;
 float frontBalance_setpoint = 0;
-float frontBalance_kp = 10, frontBalance_ki = 0, frontBalance_kd = 0;
+float frontBalance_kp = 0, frontBalance_ki = 0, frontBalance_kd = 0;
 
 //Back Balance control
 struct pid_controller backBalance_ctrl;
 PID_t backBalance_pid;
 float backBalance_input = 0, backBalance_output = 0;
 float backBalance_setpoint = 0;
-float backBalance_kp = 5, backBalance_ki = 0.0, backBalance_kd = 0.00005;
+float backBalance_kp = 3 , backBalance_ki = 0.0, backBalance_kd = 0.0;
 
 //-----------------------------------------------------------------------------------------------
 //Climbing Position Control
@@ -243,8 +243,7 @@ int main(void) {
 //	ADC_DataRequest();
 	ENCODER_Init();
 //	  DWT_Init();
-	while (MPU6050_Init(&hi2c1) == 1)
-		;
+	while (MPU6050_Init(&hi2c1) == 1);
 	HAL_Delay(1000);
 
 	//Start base wheel PWM pin
@@ -262,7 +261,7 @@ int main(void) {
 	bd25l_Init(&backMotor);
 	runMotor(&rearMotor, 0);
 	runMotor(&backMotor, 0);
-	emBrakeMotor(1);
+	emBrakeMotor(0);
 //
 	//Initialize hub motor provided joystick control
 	hubMotor_Init();
@@ -281,7 +280,7 @@ int main(void) {
 	backBalance_pid = pid_create(&backBalance_ctrl, &backBalance_input,
 			&backBalance_output, &backBalance_setpoint, backBalance_kp,
 			backBalance_ki, backBalance_kd);
-	pid_limits(backBalance_pid, -50, 50);
+	pid_limits(backBalance_pid, -20, 20);
 	pid_sample(backBalance_pid, 1);
 	pid_auto(backBalance_pid);
 
@@ -307,11 +306,15 @@ int main(void) {
 	uint32_t prev_time = HAL_GetTick();
 	ENCODER_Get_Angle(&encoderBack);
 	ENCODER_Get_Angle(&encoderFront);
+	while(state_count++ < 5000)  MPU6050_Read_All(&hi2c1, &MPU6050);
+	HAL_Delay(500); //Stabilize reading
+	initial_angle = MPU6050.KalmanAngleX;
+	state_count = 0;
+	emBrakeMotor(1);
 	//Reset encoder position
 //	ENCODER_Set_ZeroPosition(&encoderBack);
 //	ENCODER_Set_ZeroPosition(&encoderFront);
-	HAL_Delay(500);
-	//debug variable
+		//debug variable
 	uint32_t debug_prev_time = HAL_GetTick();
 	uint8_t led_status = 0;
 	//  float speed = 0;
@@ -386,7 +389,7 @@ int main(void) {
 //				speed[FRONT_INDEX] = -5;
 //			else if (button1.state == GPIO_PIN_RESET)
 //				speed[FRONT_INDEX] = 0;
-
+//
 //			if (button2.state == GPIO_PIN_SET
 //					&& button3.state == GPIO_PIN_RESET)
 //				speed[BACK_INDEX] = 5;
@@ -403,47 +406,6 @@ int main(void) {
 			//---------------------------------------------------------------------------------------------------
 			//Testing Climbing Position Control
 			//---------------------------------------------------------------------------------------------------
-//			if (button2.state == GPIO_PIN_SET && state_count++ > 10) {
-//				state_count = 0;
-//				if (state == TEST) {
-//					state = NORMAL;
-//				} else if (state == NORMAL)
-//					state = TEST;
-//			}
-//			if (state == TEST) {
-//				goto_pos(7200, backClimb_pid);
-//				goto_pos(2000, frontClimb_pid);
-//			}
-//
-//			if (state == NORMAL) {
-//				if (button1.state == GPIO_PIN_SET
-//						&& button3.state == GPIO_PIN_RESET)
-//					speed[FRONT_INDEX] = 30;
-//				else if (button1.state == GPIO_PIN_SET
-//						&& button3.state == GPIO_PIN_SET)
-//					speed[FRONT_INDEX] = -30;
-//				else if (button1.state == GPIO_PIN_RESET)
-//					speed[FRONT_INDEX] = 0;
-//				pid_reset(frontClimb_pid);
-//			}
-//			runMotor(&rearMotor, speed[FRONT_INDEX]);
-//
-//			if (state == NORMAL) {
-//				if (button1.state == GPIO_PIN_SET
-//						&& button3.state == GPIO_PIN_RESET)
-//					speed[BACK_INDEX] = 30;
-//				else if (button1.state == GPIO_PIN_SET
-//						&& button3.state == GPIO_PIN_SET)
-//					speed[BACK_INDEX] = -30;
-//				else if (button1.state == GPIO_PIN_RESET)
-//					speed[BACK_INDEX] = 0;
-//				pid_reset(backClimb_pid);
-//			}
-//			runMotor(&backMotor, speed[BACK_INDEX]);
-
-			//---------------------------------------------------------------------------------------------------
-			//Testing Climbing Balance Control
-			//---------------------------------------------------------------------------------------------------
 			if (button2.state == GPIO_PIN_SET && state_count++ > 10) {
 				state_count = 0;
 				if (state == TEST) {
@@ -452,16 +414,8 @@ int main(void) {
 					state = TEST;
 			}
 			if (state == TEST) {
-				if (button1.state == GPIO_PIN_SET
-						&& button3.state == GPIO_PIN_RESET)
-					speed[FRONT_INDEX] = 30;
-				else if (button1.state == GPIO_PIN_SET
-						&& button3.state == GPIO_PIN_SET)
-					speed[FRONT_INDEX] = -30;
-				else if (button1.state == GPIO_PIN_RESET)
-					speed[FRONT_INDEX] = 0;
-				runMotor(&rearMotor, speed[FRONT_INDEX]);
-				goto_angle(0, backBalance_pid);
+				goto_pos(0, backClimb_pid);
+				goto_pos(0, frontClimb_pid);
 			}
 
 			if (state == NORMAL) {
@@ -473,10 +427,9 @@ int main(void) {
 					speed[FRONT_INDEX] = -30;
 				else if (button1.state == GPIO_PIN_RESET)
 					speed[FRONT_INDEX] = 0;
-				pid_reset(backBalance_pid);
-				runMotor(&rearMotor, speed[FRONT_INDEX]);
+				pid_reset(frontClimb_pid);
 			}
-
+			runMotor(&rearMotor, speed[FRONT_INDEX]);
 
 //			if (state == NORMAL) {
 //				if (button1.state == GPIO_PIN_SET
@@ -490,6 +443,56 @@ int main(void) {
 //				pid_reset(backClimb_pid);
 //			}
 			runMotor(&backMotor, speed[BACK_INDEX]);
+
+			//---------------------------------------------------------------------------------------------------
+			//Testing Climbing Balance Control
+			//---------------------------------------------------------------------------------------------------
+//			if (button2.state == GPIO_PIN_SET && state_count++ > 10) {
+//				state_count = 0;
+//				if (state == TEST) {
+//					state = NORMAL;
+//				} else if (state == NORMAL)
+//					state = TEST;
+//			}
+//			if (state == TEST) {
+//				if (button1.state == GPIO_PIN_SET
+//						&& button3.state == GPIO_PIN_RESET)
+//					speed[FRONT_INDEX] = 20;
+//				else if (button1.state == GPIO_PIN_SET
+//						&& button3.state == GPIO_PIN_SET)
+//					speed[FRONT_INDEX] = -20;
+//				else if (button1.state == GPIO_PIN_RESET)
+//					speed[FRONT_INDEX] = 0;
+////				runMotor(&rearMotor, speed[FRONT_INDEX]);
+//				goto_angle(initial_angle, backBalance_pid);
+//			}
+//
+//			if (state == NORMAL) {
+//				if (button1.state == GPIO_PIN_SET
+//						&& button3.state == GPIO_PIN_RESET)
+//					speed[FRONT_INDEX] = 5;
+//				else if (button1.state == GPIO_PIN_SET
+//						&& button3.state == GPIO_PIN_SET)
+//					speed[FRONT_INDEX] = -5;
+//				else if (button1.state == GPIO_PIN_RESET)
+//					speed[FRONT_INDEX] = 0;
+//				pid_reset(backBalance_pid);
+//
+//			}
+
+
+//			if (state == NORMAL) {
+//				if (button1.state == GPIO_PIN_SET
+//						&& button3.state == GPIO_PIN_RESET)
+//					speed[BACK_INDEX] = 30;
+//				else if (button1.state == GPIO_PIN_SET
+//						&& button3.state == GPIO_PIN_SET)
+//					speed[BACK_INDEX] = -30;
+//				else if (button1.state == GPIO_PIN_RESET)
+//					speed[BACK_INDEX] = 0;
+//				pid_reset(backClimb_pid);
+//			}
+//			runMotor(&backMotor, speed[BACK_INDEX]);
 			//---------------------------------------------------------------------------------------------------
 			//Testing Climbing Balance Control
 			//2-button control front wheel control
@@ -684,6 +687,9 @@ int main(void) {
 			//
 			//	}
 
+
+//			if ((speed[FRONT_INDEX] <= 5 || speed[FRONT_INDEX] >= -5) && (speed[BACK_INDEX] <= 5 ||speed[BACK_INDEX] >= -5 )
+//
 			if (speed[FRONT_INDEX] == 0 && speed[BACK_INDEX] == 0)
 				emBrakeMotor(0);
 			else
@@ -940,20 +946,33 @@ void goto_pos(int enc, PID_t pid_t) {
 
 void goto_angle(float angle, PID_t pid_t) {
 	static float cur_angle;
+	static int cur_pos;
+	static uint32_t prev_speed_t;
 	if (pid_t == backBalance_pid) {
-		cur_angle = exp_angle_filter * (float) MPU6050.KalmanAngleX + (1-exp_angle_filter) * cur_angle;
-		if (pid_need_compute(backBalance_pid) && fabs(angle - cur_angle) > 1.5) {
+
+		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
+//		cur_angle = exp_angle_filter * (float) MPU6050.KalmanAngleX + (1-exp_angle_filter) * cur_angle;
+		cur_angle = (float) MPU6050.KalmanAngleX;
+//		 && fabs(angle - cur_angle) > 1.0
+		if (pid_need_compute(backBalance_pid) ) {
 			backBalance_setpoint = angle;
 			backBalance_input = cur_angle;
 			pid_compute(backBalance_pid);
 			speed[BACK_INDEX] = backBalance_output;
+			cur_pos = (int)encoderBack.encoder_pos;
+			prev_speed_t = HAL_GetTick();
+//			if (speed[BACK_INDEX] < 5 && speed[BACK_INDEX] >= 0) speed[BACK_INDEX] = 5;
+//			else if (speed[BACK_INDEX] > -5 && speed[BACK_INDEX] < 0) speed[BACK_INDEX] = -5;
 		} else {
-			speed[BACK_INDEX] = 0;
+			if (HAL_GetTick() - prev_speed_t > 50)
+				speed[BACK_INDEX] = 0;
+//			goto_pos(cur_pos,backClimb_pid);
+//			HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
 //			pid_reset(pid_t);
 		}
 	} else if (pid_t == frontBalance_pid) {
 		cur_angle = (float) MPU6050.KalmanAngleX;
-		if (pid_need_compute(frontBalance_pid) && fabs(angle - cur_angle) > 1.5) {
+		if (pid_need_compute(frontBalance_pid) && fabs(angle - cur_angle) > 1.0) {
 			frontBalance_setpoint = angle;
 			frontBalance_input = cur_angle;
 			pid_compute(frontBalance_pid);

@@ -55,7 +55,7 @@ uint32_t timer;
 
 Kalman_t KalmanX = {
         .Q_angle = 0.001f,
-        .Q_bias = 0.003f,
+        .Q_bias = 0.01f,
         .R_measure = 0.03f
 };
 
