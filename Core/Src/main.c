@@ -51,20 +51,24 @@
 /* USER CODE BEGIN PD */
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
+#define TO_RAD(x) x * M_PI / 180
+#define TO_DEG(x) x * 180 / M_PI
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-const float CLIMBING_LEG_LENGTH = 0.12; //in m, measured from the pivot to the center of hub motor
-const float BASE_HEIGHT = 0.9;
+const float CLIMBING_LEG_LENGTH = 0.349; //in m, measured from the pivot to the center of hub motor
+const float BASE_HEIGHT = 0.15;
+const float BACK_BASE_HEIGHT = 0.15;
+
 
 //ALLOWABLE is the maximum pos the climbing wheel can turn
 //FRONT_CLIMBING is the pos that the base above the climbing wheel w
 const uint32_t MAX_FRONT_ALLOWABLE_ENC = 3000;
 const uint32_t MIN_FRONT_ALLOWABLE_ENC = 8051;
-const uint32_t MAX_FRONT_CLIMBING_ENC = 2048;
-const uint32_t MAX_BACK_ALLOWABLE_ENC = 2820;
-const uint32_t MAX_BACK_CLIMBING_ENC = 2048;
+const uint32_t MAX_FRONT_CLIMBING_ENC = 2200; //used for climbing up
+const uint32_t MAX_BACK_ALLOWABLE_ENC = 2700;
+const uint32_t MAX_BACK_CLIMBING_ENC = 2048; //used when climbing down
 
 enum Mode {
 	TEST = 0, NORMAL
@@ -156,7 +160,9 @@ float backClimb_setpoint = 0;
 float backClimb_kp = 0.09, backClimb_ki = 0.001, backClimb_kd = 0.00008;
 
 float curb_height = 0; //store curb height
-
+float back_lifting_height = 0;
+float back_lifting_angle = 0;
+int back_encoder_input = 0;
 //-----------------------------------------------------------------------------------------------
 //Climbing Forward Control
 //-----------------------------------------------------------------------------------------------
@@ -210,6 +216,8 @@ int main(void) {
 	/* MCU Configuration--------------------------------------------------------*/
 
 	/* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+
+
 	HAL_Init();
 
 	/* USER CODE BEGIN Init */
@@ -381,55 +389,81 @@ int main(void) {
 			//---------------------------------------------------------------------------------------------------
 			//3-button control climbing mechanism
 //			---------------------------------------------------------------------------------------------------
-//			if (button1.state == GPIO_PIN_SET
-//					&& button3.state == GPIO_PIN_RESET)
-//				speed[FRONT_INDEX] = 5;
-//			else if (button1.state == GPIO_PIN_SET
-//					&& button3.state == GPIO_PIN_SET)
-//				speed[FRONT_INDEX] = -5;
-//			else if (button1.state == GPIO_PIN_RESET)
-//				speed[FRONT_INDEX] = 0;
-//
-//			if (button2.state == GPIO_PIN_SET
-//					&& button3.state == GPIO_PIN_RESET)
-//				speed[BACK_INDEX] = 5;
-//			else if (button2.state == GPIO_PIN_SET
-//					&& button3.state == GPIO_PIN_SET)
-//				speed[BACK_INDEX] = -5;
-//			else if (button2.state == GPIO_PIN_RESET)
-//				speed[BACK_INDEX] = 0;
+			if (button1.state == GPIO_PIN_SET
+					&& button3.state == GPIO_PIN_RESET)
+				speed[FRONT_INDEX] = 5;
+			else if (button1.state == GPIO_PIN_SET
+					&& button3.state == GPIO_PIN_SET)
+				speed[FRONT_INDEX] = -5;
+			else if (button1.state == GPIO_PIN_RESET)
+				speed[FRONT_INDEX] = 0;
 
-//			runMotor(&rearMotor, speed[FRONT_INDEX]);
-//			runMotor(&backMotor, speed[BACK_INDEX]);
-//				send_HubMotor(410, 410);
+			if (button2.state == GPIO_PIN_SET
+					&& button3.state == GPIO_PIN_RESET)
+				speed[BACK_INDEX] = 5;
+			else if (button2.state == GPIO_PIN_SET
+					&& button3.state == GPIO_PIN_SET)
+				speed[BACK_INDEX] = -5;
+			else if (button2.state == GPIO_PIN_RESET)
+				speed[BACK_INDEX] = 0;
+			curb_height = CLIMBING_LEG_LENGTH * cos(TO_RAD(encoderFront.angleDeg)) + BASE_HEIGHT - FRONT_CLIMB_WHEEL_DIAMETER / 2.0;
+				curb_height -= 0.01;
+			back_lifting_height = BACK_BASE_HEIGHT + curb_height - HUB_DIAMETER / 2  ;
+			back_lifting_angle = TO_DEG((float)acos(-back_lifting_height/0.34));
+			back_encoder_input = back_lifting_angle /360 * (4096 * BACK_GEAR_RATIO);
+
+
+			runMotor(&rearMotor, speed[FRONT_INDEX]);
+			runMotor(&backMotor, speed[BACK_INDEX]);
+			if (speed[BACK_INDEX] != 0 && GPIO_Digital_Filtered_Input(&backLS1, 5) && GPIO_Digital_Filtered_Input(&backLS2, 5) ){
+				double dt = (HAL_GetTick() - prev_angle_tick) / (float) FREQUENCY;
+				climbForward_speed =  CLIMBING_LEG_LENGTH * (sin(TO_RAD(prev_angle)) - sin(TO_RAD(encoderBack.angleDeg))) / dt; //unit: m/s,
+//				//Convert hub speed into pulse/second
+				send_HubMotor(climbForward_speed, climbForward_speed);
+				prev_angle = encoderBack.angleDeg;
+				prev_angle_tick = HAL_GetTick();
+			}
+			else {
+				send_HubMotor(0, 0);
+				climbForward_speed = 0;
+			}
+
+//			prev_angle = encoderBack.angleDeg;
+//			prev_angle_tick = HAL_GetTick();
+//
+
+
+//				send_HubMotor(410, 410); * 180 / M_PI
 
 			//---------------------------------------------------------------------------------------------------
 			//Testing Climbing Position Control
 			//---------------------------------------------------------------------------------------------------
-			if (button2.state == GPIO_PIN_SET && state_count++ > 10) {
-				state_count = 0;
-				if (state == TEST) {
-					state = NORMAL;
-				} else if (state == NORMAL)
-					state = TEST;
-			}
-			if (state == TEST) {
-				goto_pos(0, backClimb_pid);
-				goto_pos(0, frontClimb_pid);
-			}
-
-			if (state == NORMAL) {
-				if (button1.state == GPIO_PIN_SET
-						&& button3.state == GPIO_PIN_RESET)
-					speed[FRONT_INDEX] = 30;
-				else if (button1.state == GPIO_PIN_SET
-						&& button3.state == GPIO_PIN_SET)
-					speed[FRONT_INDEX] = -30;
-				else if (button1.state == GPIO_PIN_RESET)
-					speed[FRONT_INDEX] = 0;
-				pid_reset(frontClimb_pid);
-			}
-			runMotor(&rearMotor, speed[FRONT_INDEX]);
+//			if (button2.state == GPIO_PIN_SET && state_count++ > 10) {
+//				state_count = 0;
+//				if (state == TEST) {
+//					state = NORMAL;
+//				} else if (state == NORMAL)
+//					state = TEST;
+//			}
+//			if (state == TEST) {
+//				goto_pos(0, backClimb_pid);
+//				goto_pos(0, frontClimb_pid);
+//			}
+//
+//			if (state == NORMAL) {
+//				if (button1.state == GPIO_PIN_SET
+//						&& button3.state == GPIO_PIN_RESET)
+//					speed[FRONT_INDEX] = 30;
+//				else if (button1.state == GPIO_PIN_SET
+//						&& button3.state == GPIO_PIN_SET)
+//					speed[FRONT_INDEX] = -30;
+//				else if (button1.state == GPIO_PIN_RESET)
+//					speed[FRONT_INDEX] = 0;
+//				pid_reset(frontClimb_pid);
+//				curb_height = CLIMBING_LEG_LENGTH * cos(TO_RAD(encoderFront.angleDeg)) + BASE_HEIGHT - FRONT_CLIMB_WHEEL_DIAMETER / 2.0;
+//				curb_height -= 0.01;
+//			}
+//			runMotor(&rearMotor, speed[FRONT_INDEX]);
 
 //			if (state == NORMAL) {
 //				if (button1.state == GPIO_PIN_SET
@@ -442,7 +476,7 @@ int main(void) {
 //					speed[BACK_INDEX] = 0;
 //				pid_reset(backClimb_pid);
 //			}
-			runMotor(&backMotor, speed[BACK_INDEX]);
+//			runMotor(&backMotor, speed[BACK_INDEX]);
 
 			//---------------------------------------------------------------------------------------------------
 			//Testing Climbing Balance Control
@@ -684,7 +718,8 @@ int main(void) {
 			//
 			//		if (button3.state == GPIO_PIN_SET)
 			//			reinitialize();
-			//
+			// back lifted: 2336
+				//
 			//	}
 
 
@@ -926,7 +961,7 @@ void goto_pos(int enc, PID_t pid_t) {
 		}
 	} else if (pid_t == backClimb_pid) {
 		cur_enc_pos = (int) encoderBack.encoder_pos;
-		if (pid_need_compute(backClimb_pid) && fabs(enc - cur_enc_pos) > 10) {
+		if (pid_need_compute(backClimb_pid) && fabs(enc - cur_enc_pos) > 10 && encoderBack.encoder_pos <= MAX_BACK_ALLOWABLE_ENC) {
 			// Read process feedback
 			if (cur_enc_pos > MAX_BACK_ALLOWABLE_ENC)
 				cur_enc_pos -= 4096 * BACK_GEAR_RATIO;
