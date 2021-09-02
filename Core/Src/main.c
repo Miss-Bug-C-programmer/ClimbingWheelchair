@@ -178,7 +178,7 @@ const float climb_linSpeedLevel[3] = { 1000.0f, 3000.0f, 4000.0f };
 const float climb_angSpeedLevel[3] = { 500.0f, 1500.0f, 2000.0f };
 int climb_speedLevel = 0; //change the speed level if need higher speed
 
-float climbForward_speed = 0;
+float climbForward_speed = 0; //rad/s
 float forward_distance = BASE_LENGTH; // (in meter) distance to travel during climbing process by hub
 
 //-----------------------------------------------------------------------------------------------
@@ -415,10 +415,12 @@ int main(void) {
 
 			runMotor(&rearMotor, speed[FRONT_INDEX]);
 			runMotor(&backMotor, speed[BACK_INDEX]);
+
+			//Prevent wheelchair from being pulled by the hub motor during lifting up process
 			if (speed[BACK_INDEX] != 0 && GPIO_Digital_Filtered_Input(&backLS1, 5) && GPIO_Digital_Filtered_Input(&backLS2, 5) ){
 				double dt = (HAL_GetTick() - prev_angle_tick) / (float) FREQUENCY;
 				climbForward_speed =  CLIMBING_LEG_LENGTH * (sin(TO_RAD(prev_angle)) - sin(TO_RAD(encoderBack.angleDeg))) / dt; //unit: m/s,
-//				//Convert hub speed into pulse/second
+				climbForward_speed = climbForward_speed / (HUB_DIAMETER / 2);
 				send_HubMotor(climbForward_speed, climbForward_speed);
 				prev_angle = encoderBack.angleDeg;
 				prev_angle_tick = HAL_GetTick();
@@ -428,13 +430,7 @@ int main(void) {
 				climbForward_speed = 0;
 			}
 
-//			prev_angle = encoderBack.angleDeg;
-//			prev_angle_tick = HAL_GetTick();
-//
-
-
-//				send_HubMotor(410, 410); * 180 / M_PI
-
+			climbingForward(1);
 			//---------------------------------------------------------------------------------------------------
 			//Testing Climbing Position Control
 			//---------------------------------------------------------------------------------------------------
@@ -527,6 +523,7 @@ int main(void) {
 //				pid_reset(backClimb_pid);
 //			}
 //			runMotor(&backMotor, speed[BACK_INDEX]);
+
 			//---------------------------------------------------------------------------------------------------
 			//Testing Climbing Balance Control
 			//2-button control front wheel control
@@ -913,20 +910,15 @@ void baseMotorCommand(void) {
 
 //Move forward during climbing process
 void climbingForward(float dist) {
-	//	float distance_travelled;
-	//	int diff_encoder_1;
-	//	int diff_encoder_2;
 	static int prev_tick = 0;
-	float rps = 6.0f / 60;
-	if (dist > 0) {
-		if (HAL_GetTick() - prev_tick > 1) {
-			float dt = (float) (HAL_GetTick() - prev_tick) / FREQUENCY;
-			dist -= (HUB_DIAMETER * M_PI * rps * dt);
-			send_HubMotor(rps, rps);
-			prev_tick = HAL_GetTick();
-		}
-	} else
-		send_HubMotor(0, 0);
+	float rps = 0.1; //rad/s
+	while (dist > 0) {
+		float dt = (float) (HAL_GetTick() - prev_tick) / FREQUENCY;
+		dist -= (HUB_DIAMETER * rps * dt) / 2 ;
+		send_HubMotor(0.1, 0.1);
+		prev_tick = HAL_GetTick();
+	}
+	send_HubMotor(0,0);
 }
 
 void reinitialize(void) {

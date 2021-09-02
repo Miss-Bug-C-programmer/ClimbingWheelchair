@@ -67,10 +67,10 @@ void hubMotor_Stop();
 /**
   * @brief send speed command to Hub motor
   * Need add HAL_DMA_RECEIVE_CPT_CALLBACK to receive message
-  * @param velocity
+  * @param ang velocity
   * @retval None
   */
-void send_HubMotor(float m1_speed, float m2_speed);
+void send_HubMotor(float m1_ang_speed, float m2_ang_speed);
 
 //TODO:Received message process
 /**
