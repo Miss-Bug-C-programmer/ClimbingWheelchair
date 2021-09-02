@@ -186,6 +186,7 @@ float forward_distance = BASE_LENGTH; // (in meter) distance to travel during cl
 //-----------------------------------------------------------------------------------------------
 enum Mode state = NORMAL;
 int state_count = 0;
+float dist = 0.386;
 
 /* USER CODE END PV */
 
@@ -193,7 +194,7 @@ int state_count = 0;
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
 void baseMotorCommand(void);
-void climbingForward(float dist);
+void climbingForward(float* dist);
 void reinitialize(void);
 void goto_pos(int enc, PID_t pid_t);
 void goto_angle(float angle, PID_t pid_t);
@@ -273,6 +274,7 @@ int main(void) {
 //
 	//Initialize hub motor provided joystick control
 	hubMotor_Init();
+	send_HubMotor(0, 0);
 	wheelSpeedControl_Init(&climbWheelSpeed,
 			climb_linSpeedLevel[climb_speedLevel],
 			climb_angSpeedLevel[climb_speedLevel]);
@@ -426,11 +428,11 @@ int main(void) {
 				prev_angle_tick = HAL_GetTick();
 			}
 			else {
-				send_HubMotor(0, 0);
+//				send_HubMotor(0, 0);
 				climbForward_speed = 0;
 			}
 
-			climbingForward(1);
+			climbingForward(&dist);
 			//---------------------------------------------------------------------------------------------------
 			//Testing Climbing Position Control
 			//---------------------------------------------------------------------------------------------------
@@ -909,16 +911,32 @@ void baseMotorCommand(void) {
 }
 
 //Move forward during climbing process
-void climbingForward(float dist) {
+void climbingForward(float* dist) {
 	static int prev_tick = 0;
-	float rps = 0.1; //rad/s
-	while (dist > 0) {
-		float dt = (float) (HAL_GetTick() - prev_tick) / FREQUENCY;
-		dist -= (HUB_DIAMETER * rps * dt) / 2 ;
-		send_HubMotor(0.1, 0.1);
+	float rps = 0.5; //rad/s
+	static int32_t prev_enc;
+	static int first_loop = 1;
+	if (first_loop){
+		prev_enc= hub_encoder_feedback.encoder_2;
 		prev_tick = HAL_GetTick();
+		first_loop = 0;
 	}
-	send_HubMotor(0,0);
+	if (*dist >= 0) {
+		send_HubMotor(rps, rps);
+		if(HAL_GetTick() - prev_tick > 1){
+			float dt = (float) (HAL_GetTick() - prev_tick) / FREQUENCY;
+			float rad_per_s = ((float)(hub_encoder_feedback.encoder_2 - prev_enc) / dt ) * 2 * M_PI / 4096;
+			*dist -= (HUB_DIAMETER * rad_per_s * dt) / 2 ;
+			prev_tick = HAL_GetTick();
+			prev_enc = hub_encoder_feedback.encoder_2;
+		}
+
+	}
+	else if (*dist < 0){
+		first_loop = 1;
+		send_HubMotor(0, 0);
+	}
+
 }
 
 void reinitialize(void) {
