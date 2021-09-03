@@ -31,6 +31,7 @@
 /* USER CODE BEGIN Includes */
 #include <math.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include "adc.h"
 #include "encoder.h"
 #include "button.h"
@@ -61,13 +62,12 @@ const float CLIMBING_LEG_LENGTH = 0.349; //in m, measured from the pivot to the 
 const float BASE_HEIGHT = 0.15;
 const float BACK_BASE_HEIGHT = 0.15;
 
-
 //ALLOWABLE is the maximum pos the climbing wheel can turn
 //FRONT_CLIMBING is the pos that the base above the climbing wheel w
 const uint32_t MAX_FRONT_ALLOWABLE_ENC = 3000;
 const uint32_t MIN_FRONT_ALLOWABLE_ENC = 8051;
 const uint32_t MAX_FRONT_CLIMBING_ENC = 2200; //used for climbing up
-const uint32_t MAX_BACK_ALLOWABLE_ENC = 2700;
+const uint32_t MAX_BACK_ALLOWABLE_ENC = 3400;
 const uint32_t MAX_BACK_CLIMBING_ENC = 2048; //used when climbing down
 
 enum Mode {
@@ -110,8 +110,8 @@ int base_speedLevel = 1; //change the speed level if need higher speed
 //State
 int8_t lifting_mode = 0; //0 is normal operation, 1 is lifting up, 2 is lifitng down
 uint8_t retraction_mode = 0;
-uint8_t front_touchdown = false; //Record the state of climbing wheel whether contact with ground
-uint8_t back_touchdown = false;
+bool front_touchdown = false; //Record the state of climbing wheel whether contact with ground
+bool back_touchdown = false;
 
 //-----------------------------------------------------------------------------------------------
 //Balance Control
@@ -119,7 +119,7 @@ uint8_t back_touchdown = false;
 MPU6050_t MPU6050;
 double initial_angle = 0;
 double exp_angle_filter = 0.8;
-uint8_t climb_first_iteration = true;
+bool climb_first_iteration = true;
 
 //Front Balance control
 struct pid_controller frontBalance_ctrl;
@@ -133,7 +133,7 @@ struct pid_controller backBalance_ctrl;
 PID_t backBalance_pid;
 float backBalance_input = 0, backBalance_output = 0;
 float backBalance_setpoint = 0;
-float backBalance_kp = 3 , backBalance_ki = 0.0, backBalance_kd = 0.0;
+float backBalance_kp = 3, backBalance_ki = 0.0, backBalance_kd = 0.0;
 
 //-----------------------------------------------------------------------------------------------
 //Climbing Position Control
@@ -170,7 +170,7 @@ int back_encoder_input = 0;
 uint8_t receive_buf[15];
 Encoder_Feedback hub_encoder_feedback;
 Encoder_Feedback prev_hub_encoder_feedback;
-uint8_t first_encoder_callback = true;
+bool first_encoder_callback = true;
 //ClimbWheel need to be removed after fully automated
 WheelSpeed climbWheelSpeed = { .accel_loop = 100.0f, .decel_loop = 200.0f,
 		.left_speed_step = 5.0, .right_speed_step = 5.0 };
@@ -194,7 +194,7 @@ float dist = 0.386;
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
 void baseMotorCommand(void);
-void climbingForward(float* dist);
+void climbingForward(float dist);
 void reinitialize(void);
 void goto_pos(int enc, PID_t pid_t);
 void goto_angle(float angle, PID_t pid_t);
@@ -217,7 +217,6 @@ int main(void) {
 	/* MCU Configuration--------------------------------------------------------*/
 
 	/* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-
 
 	HAL_Init();
 
@@ -252,8 +251,12 @@ int main(void) {
 //	ADC_DataRequest();
 	ENCODER_Init();
 //	  DWT_Init();
-	while (MPU6050_Init(&hi2c1) == 1);
-	HAL_Delay(1000);
+
+	uint32_t state_count = HAL_GetTick();
+	while (MPU6050_Init(&hi2c1) == 1) {
+		if (HAL_GetTick() - state_count > 5000)
+			Error_Handler();
+	}
 
 	//Start base wheel PWM pin
 	wheelSpeedControl_Init(&baseWheelSpeed, base_linSpeedLevel[base_speedLevel],
@@ -263,7 +266,6 @@ int main(void) {
 	HAL_TIM_PWM_Start(&MOTOR_TIM, TIM_CHANNEL_2);
 	MOTOR_TIM.Instance->RIGHT_MOTOR_CHANNEL = 1500;
 	MOTOR_TIM.Instance->LEFT_MOTOR_CHANNEL = 1500;
-	HAL_Delay(100);
 
 //	//Initialize rear and back motor
 	bd25l_Init(&rearMotor);
@@ -316,15 +318,15 @@ int main(void) {
 	uint32_t prev_time = HAL_GetTick();
 	ENCODER_Get_Angle(&encoderBack);
 	ENCODER_Get_Angle(&encoderFront);
-	while(state_count++ < 5000)  MPU6050_Read_All(&hi2c1, &MPU6050);
-	HAL_Delay(500); //Stabilize reading
+	while (state_count++ < 1000)
+		MPU6050_Read_All(&hi2c1, &MPU6050);
 	initial_angle = MPU6050.KalmanAngleX;
 	state_count = 0;
 	emBrakeMotor(1);
 	//Reset encoder position
 //	ENCODER_Set_ZeroPosition(&encoderBack);
 //	ENCODER_Set_ZeroPosition(&encoderFront);
-		//debug variable
+	//debug variable
 	uint32_t debug_prev_time = HAL_GetTick();
 	uint8_t led_status = 0;
 	//  float speed = 0;
@@ -391,48 +393,30 @@ int main(void) {
 			//---------------------------------------------------------------------------------------------------
 			//3-button control climbing mechanism
 //			---------------------------------------------------------------------------------------------------
-			if (button1.state == GPIO_PIN_SET
-					&& button3.state == GPIO_PIN_RESET)
-				speed[FRONT_INDEX] = 5;
-			else if (button1.state == GPIO_PIN_SET
-					&& button3.state == GPIO_PIN_SET)
-				speed[FRONT_INDEX] = -5;
-			else if (button1.state == GPIO_PIN_RESET)
-				speed[FRONT_INDEX] = 0;
-
-			if (button2.state == GPIO_PIN_SET
-					&& button3.state == GPIO_PIN_RESET)
-				speed[BACK_INDEX] = 5;
-			else if (button2.state == GPIO_PIN_SET
-					&& button3.state == GPIO_PIN_SET)
-				speed[BACK_INDEX] = -5;
-			else if (button2.state == GPIO_PIN_RESET)
-				speed[BACK_INDEX] = 0;
-			curb_height = CLIMBING_LEG_LENGTH * cos(TO_RAD(encoderFront.angleDeg)) + BASE_HEIGHT - FRONT_CLIMB_WHEEL_DIAMETER / 2.0;
-				curb_height -= 0.01;
-			back_lifting_height = BACK_BASE_HEIGHT + curb_height - HUB_DIAMETER / 2  ;
-			back_lifting_angle = TO_DEG((float)acos(-back_lifting_height/0.34));
-			back_encoder_input = back_lifting_angle /360 * (4096 * BACK_GEAR_RATIO);
-
-
-			runMotor(&rearMotor, speed[FRONT_INDEX]);
-			runMotor(&backMotor, speed[BACK_INDEX]);
+//			if (button1.state == GPIO_PIN_SET
+//					&& button3.state == GPIO_PIN_RESET)
+//				speed[FRONT_INDEX] = 5;
+//			else if (button1.state == GPIO_PIN_SET
+//					&& button3.state == GPIO_PIN_SET)
+//				speed[FRONT_INDEX] = -5;
+//			else if (button1.state == GPIO_PIN_RESET)
+//				speed[FRONT_INDEX] = 0;
+//
+//			if (button2.state == GPIO_PIN_SET
+//					&& button3.state == GPIO_PIN_RESET)
+//				speed[BACK_INDEX] = 5;
+//			else if (button2.state == GPIO_PIN_SET
+//					&& button3.state == GPIO_PIN_SET)
+//				speed[BACK_INDEX] = -5;
+//			else if (button2.state == GPIO_PIN_RESET)
+//				speed[BACK_INDEX] = 0;
+//
+//			runMotor(&rearMotor, speed[FRONT_INDEX]);
+//			runMotor(&backMotor, speed[BACK_INDEX]);
 
 			//Prevent wheelchair from being pulled by the hub motor during lifting up process
-			if (speed[BACK_INDEX] != 0 && GPIO_Digital_Filtered_Input(&backLS1, 5) && GPIO_Digital_Filtered_Input(&backLS2, 5) ){
-				double dt = (HAL_GetTick() - prev_angle_tick) / (float) FREQUENCY;
-				climbForward_speed =  CLIMBING_LEG_LENGTH * (sin(TO_RAD(prev_angle)) - sin(TO_RAD(encoderBack.angleDeg))) / dt; //unit: m/s,
-				climbForward_speed = climbForward_speed / (HUB_DIAMETER / 2);
-				send_HubMotor(climbForward_speed, climbForward_speed);
-				prev_angle = encoderBack.angleDeg;
-				prev_angle_tick = HAL_GetTick();
-			}
-			else {
-//				send_HubMotor(0, 0);
-				climbForward_speed = 0;
-			}
 
-			climbingForward(&dist);
+//			climbingForward(dist);
 			//---------------------------------------------------------------------------------------------------
 			//Testing Climbing Position Control
 			//---------------------------------------------------------------------------------------------------
@@ -512,7 +496,6 @@ int main(void) {
 //
 //			}
 
-
 //			if (state == NORMAL) {
 //				if (button1.state == GPIO_PIN_SET
 //						&& button3.state == GPIO_PIN_RESET)
@@ -573,62 +556,99 @@ int main(void) {
 			//3. Climbing wheel retraction
 			//---------------------------------------------------------------------------------------------------
 			//Climbing wheel start landing when button3 is pressed
-//			if (button3.state == 1 && front_touchdown == false && back_touchdown == false && lifting_mode == 0){
-//				while(front_touchdown == false || back_touchdown == false){
-//					//if front touch before back, climbing up process
-//					if (back_touchdown == 0 && front_touchdown == 1)
-//						lifting_mode = 1;
-//					//if back touch before front, climbing down process
-//					else if (back_touchdown == 1 && front_touchdown == 0)
-//						lifting_mode = 2;
-//
-//					initial_angle = exp_angle_filter * MPU6050.KalmanAngleX + (1-exp_angle_filter) * initial_angle;
-//
-//					if (back_touchdown == false)
-//						runMotor(&backMotor, 10);
-//					else
-//						runMotor(&backMotor, 0);
-//
-//					if (front_touchdown == false)
-//						runMotor(&rearMotor, 10);
-//					else
-//						runMotor(&rearMotor, 0);
-//
-//					if (GPIO_Digital_Filtered_Input(&rearLS1, 5) || GPIO_Digital_Filtered_Input(&rearLS2, 5))
-//						front_touchdown = 1;
-//					if (GPIO_Digital_Filtered_Input(&backLS1, 5) || GPIO_Digital_Filtered_Input(&backLS2, 5))
-//						back_touchdown = 1;
-//				}
-//
-//				//If curb_height is positive, should be climbing up process and vice versa
-//				curb_height = CLIMBING_LEG_LENGTH * cos(encoderBack.angleDeg) + BASE_HEIGHT;
-//
-//			}
-//
-//			//Normal wheelchair mode, basic joystick control mode
-//			if (lifting_mode == 0){
+			if (button3.state == 1 && front_touchdown == false
+					&& back_touchdown == false && lifting_mode == 0) {
+				emBrakeMotor(1);
+				while (front_touchdown == false || back_touchdown == false) {
+					if (GPIO_Digital_Filtered_Input(&rearLS1, 5)
+							|| GPIO_Digital_Filtered_Input(&rearLS2, 5))
+						front_touchdown = 1;
+					if (GPIO_Digital_Filtered_Input(&backLS1, 5)
+							|| GPIO_Digital_Filtered_Input(&backLS2, 5))
+						back_touchdown = 1;
+
+					//if front touch before back, climbing up process
+					if (back_touchdown == 0 && front_touchdown == 1)
+						lifting_mode = 1;
+					//if back touch before front, climbing down process
+					else if (back_touchdown == 1 && front_touchdown == 0)
+						lifting_mode = 2;
+
+					initial_angle = exp_angle_filter * MPU6050.KalmanAngleX
+							+ (1 - exp_angle_filter) * initial_angle;
+
+					if (back_touchdown == false)
+						runMotor(&backMotor, 5);
+					else
+						runMotor(&backMotor, 0);
+
+					if (front_touchdown == false)
+						runMotor(&rearMotor, 5);
+					else
+						runMotor(&rearMotor, 0);
+				}
+
+				HAL_Delay(500);
+				continue; //to refresh the loop and get the latest encoder reading
+
+//				curb_height = CLIMBING_LEG_LENGTH
+//						* cos(TO_RAD(encoderFront.angleDeg)) + BASE_HEIGHT
+//						- FRONT_CLIMB_WHEEL_DIAMETER / 2.0;
+//				curb_height -= 0.01; //Small error correction
+//				back_lifting_height = BACK_BASE_HEIGHT + curb_height
+//						- HUB_DIAMETER / 2;
+//				back_lifting_angle = TO_DEG(
+//						(float )acos(-back_lifting_height / 0.34));
+//				back_encoder_input = TO_DEG(back_lifting_angle) / 360
+//						* (4096 * BACK_GEAR_RATIO);
+
+			}
+
+			//Normal wheelchair mode, basic joystick control mode
+			if (lifting_mode == 0) {
 //				wheel_Control(&baseWheelSpeed);
 //				baseMotorCommand();
-//			}
-//
+				goto_pos(0, frontClimb_pid);
+				goto_pos(0, backClimb_pid);
+				front_touchdown = false;
+				back_touchdown = false;
+				climb_first_iteration = true;
+
+			}
+
 //			//Climbing up process
-//			else if (lifting_mode == 1){
-//				//1. lift the front climbing wheel up until it reach it maximum pos
-//				//The process is controlled by PID on the front climbing wheel
-//				//the maximum pos is when the climbing wheel is below the wheelchair base
-//				if (pid_need_compute(frontClimb_pid) && fabs(MAX_FRONT_CLIMBING_ENC - encoderBack.encoder_pos) > 10){
-//					// Read process feedback
-//					frontClimb_input = (MAX_FRONT_CLIMBING_ENC - encoderBack.encoder_pos);
-//					// Compute new PID output value
-//					pid_compute(frontClimb_pid);
-//					//Change actuator value
-//					speed[FRONT_INDEX] = frontClimb_output;
-//				}
-//				else speed[FRONT_INDEX] = 0;
-//
-//				//2. In the meanwhile, use another PID to make sure the wheelchair is balance
-//				//By controlling the back wheel
-//				// Check if need to compute PID
+			if (lifting_mode == 1) {
+				if (climb_first_iteration) {
+					//If curb_height is positive, should be climbing up process and vice versa
+					curb_height = CLIMBING_LEG_LENGTH
+							* cos(TO_RAD(encoderFront.angleDeg)) + BASE_HEIGHT
+							- FRONT_CLIMB_WHEEL_DIAMETER / 2.0;
+					//curb_height -= 0.01; //Small error correction
+
+					//First determine whether is the height climb-able
+					back_lifting_height = BACK_BASE_HEIGHT + curb_height
+							- HUB_DIAMETER / 2;
+					back_lifting_angle = TO_DEG(
+							(float )acos(-back_lifting_height / 0.34));
+					back_encoder_input = back_lifting_angle / 360
+							* (4096 * BACK_GEAR_RATIO);
+
+					if (isnan(back_lifting_angle)
+							|| back_encoder_input >= MAX_BACK_ALLOWABLE_ENC) {
+						lifting_mode = 0;
+						continue;
+					}
+
+					climb_first_iteration = false;
+				}
+
+				//1. lift the front climbing wheel up until it reach it maximum pos
+				//The process is controlled by PID on the front climbing wheel
+				//the maximum pos is when the climbing wheel is below the wheelchair base
+				goto_pos(MAX_FRONT_CLIMBING_ENC, frontClimb_pid);
+
+				//2. In the meanwhile, use another PID to make sure the wheelchair is balance
+				//By controlling the back wheel
 //				if (pid_need_compute(backBalance_pid) && fabs(initial_angle - MPU6050.KalmanAngleX) > 1.0 && fabs(MAX_BACK_ALLOWABLE_ENC - encoderFront.encoder_pos) > 10){
 //					// Read process feedback
 //					backBalance_input = (MPU6050.KalmanAngleX - initial_angle);
@@ -638,27 +658,37 @@ int main(void) {
 //					speed[BACK_INDEX] = backBalance_output;
 //				}
 //				else speed[BACK_INDEX] = 0;
-//
-//				runMotor(&rearMotor, speed[FRONT_INDEX]);
-//				runMotor(&backMotor, speed[BACK_INDEX]);
-//
-//				//3. During lifting, due to fixed point at the back climbing wheel.
-//				//The wheelchair would be pulled back if the back wheel not traveling while the its lifting
-//				//Therefore, lifting of back wheel and hub motor need to work at the same time to make sure the wheelchair is not moving back.
-//				//Pull back of wheelchair would cause the front climbing wheel to slip from the curb
-//				if (speed[BACK_INDEX] != 0){
-//					double dt = (HAL_GetTick() - prev_angle_tick) / (float) FREQUENCY;
-//					climbForward_speed = - CLIMBING_LEG_LENGTH * (prev_angle - encoderFront.angleDeg) * cos(encoderFront.angleDeg) / dt; //unit: m/s,
-//					//Convert hub speed into pulse/second
-//					send_HubMotor(climbForward_speed, climbForward_speed);
-//				}
-//				else send_HubMotor(0, 0);
-//
-//
-//
-//
-//
-//			}
+				goto_pos(back_encoder_input, backClimb_pid);
+
+				if (fabs(speed[FRONT_INDEX]) < 4)
+					speed[FRONT_INDEX] = 0;
+				if (fabs(speed[BACK_INDEX]) < 4)
+					speed[BACK_INDEX] = 0;
+
+				runMotor(&rearMotor, speed[FRONT_INDEX]);
+				runMotor(&backMotor, speed[BACK_INDEX]);
+
+				//3. During lifting, due to fixed point at the back climbing wheel.
+				//The wheelchair would be pulled back if the back wheel not traveling while the its lifting
+				//Therefore, lifting of back wheel and hub motor need to work at the same time to make sure the wheelchair is not moving back.
+				//Pull back of wheelchair would cause the front climbing wheel to slip from the curb
+				if (speed[BACK_INDEX] != 0
+						&& GPIO_Digital_Filtered_Input(&backLS1, 5)
+						&& GPIO_Digital_Filtered_Input(&backLS2, 5)) {
+					double dt = (HAL_GetTick() - prev_angle_tick)
+							/ (float) FREQUENCY;
+					climbForward_speed = CLIMBING_LEG_LENGTH
+							* (sin(TO_RAD(prev_angle))
+									- sin(TO_RAD(encoderBack.angleDeg))) / dt; //unit: m/s,
+					climbForward_speed = climbForward_speed
+							/ (HUB_DIAMETER / 2);
+					//Convert hub speed into pulse/second
+					send_HubMotor(climbForward_speed, climbForward_speed);
+					prev_angle = encoderBack.angleDeg;
+					prev_angle_tick = HAL_GetTick();
+				} else
+					send_HubMotor(0, 0);
+			}
 			//
 			//	else if (lifting_mode == 2){
 			//		//Climbing down process
@@ -718,20 +748,20 @@ int main(void) {
 			//		if (button3.state == GPIO_PIN_SET)
 			//			reinitialize();
 			// back lifted: 2336
-				//
+			//
 			//	}
-
 
 //			if ((speed[FRONT_INDEX] <= 5 || speed[FRONT_INDEX] >= -5) && (speed[BACK_INDEX] <= 5 ||speed[BACK_INDEX] >= -5 )
 //
+
+			runMotor(&rearMotor, speed[FRONT_INDEX]);
+			runMotor(&backMotor, speed[BACK_INDEX]);
+
 			if (speed[FRONT_INDEX] == 0 && speed[BACK_INDEX] == 0)
 				emBrakeMotor(0);
 			else
-				emBrakeMotor(1);
-//			runMotor(&rearMotor, speed[FRONT_INDEX]);
-//			runMotor(&backMotor, speed[BACK_INDEX]);
 
-			//store prev_angle for climbing Up mechanism
+				//store prev_angle for climbing Up mechanism
 //				prev_angle = encoderFront.angleDeg;
 //				prev_angle_tick = HAL_GetTick();
 
@@ -741,23 +771,23 @@ int main(void) {
 //				float speed = 6.0/60.0;
 //				send_HubMotor(speed, speed);
 
-			//	if (rearLS1.state == GPIO_PIN_RESET || rearLS2.state == GPIO_PIN_RESET){
-			//	    front_touchdown = 0;
-			//	}
-			//	else if (rearLS1.state == GPIO_PIN_SET || rearLS2.state == GPIO_PIN_SET){
-			//	    front_touchdown = 1;
-			//	}
-			//
-			//	if (backLS1.state == GPIO_PIN_RESET || backLS2.state == GPIO_PIN_RESET){
-			//	    back_touchdown = 0;
-			//	}
-			//	else if (backLS1.state == GPIO_PIN_SET || backLS2.state == GPIO_PIN_SET){
-			//	    back_touchdown = 1;
-			//	}
-			//
-			//	//Climbing phase start
+				//	if (rearLS1.state == GPIO_PIN_RESET || rearLS2.state == GPIO_PIN_RESET){
+				//	    front_touchdown = 0;
+				//	}
+				//	else if (rearLS1.state == GPIO_PIN_SET || rearLS2.state == GPIO_PIN_SET){
+				//	    front_touchdown = 1;
+				//	}
+				//
+				//	if (backLS1.state == GPIO_PIN_RESET || backLS2.state == GPIO_PIN_RESET){
+				//	    back_touchdown = 0;
+				//	}
+				//	else if (backLS1.state == GPIO_PIN_SET || backLS2.state == GPIO_PIN_SET){
+				//	    back_touchdown = 1;
+				//	}
+				//
+				//	//Climbing phase start
 
-			prev_time = HAL_GetTick();
+				prev_time = HAL_GetTick();
 
 		}
 		//	HAL_Delay(10);
@@ -911,28 +941,31 @@ void baseMotorCommand(void) {
 }
 
 //Move forward during climbing process
-void climbingForward(float* dist) {
+void climbingForward(float dist) {
 	static int prev_tick = 0;
-	float rps = 0.5; //rad/s
 	static int32_t prev_enc;
-	static int first_loop = 1;
-	if (first_loop){
-		prev_enc= hub_encoder_feedback.encoder_2;
+	static bool first_loop = true;
+	static float dist_remaining;
+
+	float rps = (dist >= 0) ? 0.5 : -0.5; //rad/s
+
+	if (first_loop) {
+		prev_enc = hub_encoder_feedback.encoder_2;
 		prev_tick = HAL_GetTick();
-		first_loop = 0;
+		first_loop = false;
+		dist_remaining = dist;
 	}
-	if (*dist >= 0) {
+	if (dist / dist_remaining >= 0 && first_loop == false) {
 		send_HubMotor(rps, rps);
-		if(HAL_GetTick() - prev_tick > 1){
+		if (HAL_GetTick() - prev_tick > 1) {
 			float dt = (float) (HAL_GetTick() - prev_tick) / FREQUENCY;
-			float rad_per_s = ((float)(hub_encoder_feedback.encoder_2 - prev_enc) / dt ) * 2 * M_PI / 4096;
-			*dist -= (HUB_DIAMETER * rad_per_s * dt) / 2 ;
+			float rad_per_s = ((float) (hub_encoder_feedback.encoder_2
+					- prev_enc) / dt) * 2 * M_PI / 4096;
+			dist_remaining -= (HUB_DIAMETER * rad_per_s * dt) / 2;
 			prev_tick = HAL_GetTick();
 			prev_enc = hub_encoder_feedback.encoder_2;
 		}
-
-	}
-	else if (*dist < 0){
+	} else {
 		first_loop = 1;
 		send_HubMotor(0, 0);
 	}
@@ -971,7 +1004,8 @@ void goto_pos(int enc, PID_t pid_t) {
 		}
 	} else if (pid_t == backClimb_pid) {
 		cur_enc_pos = (int) encoderBack.encoder_pos;
-		if (pid_need_compute(backClimb_pid) && fabs(enc - cur_enc_pos) > 10 && encoderBack.encoder_pos <= MAX_BACK_ALLOWABLE_ENC) {
+		if (pid_need_compute(backClimb_pid) && fabs(enc - cur_enc_pos) > 10
+				&& encoderBack.encoder_pos <= MAX_BACK_ALLOWABLE_ENC) {
 			// Read process feedback
 			if (cur_enc_pos > MAX_BACK_ALLOWABLE_ENC)
 				cur_enc_pos -= 4096 * BACK_GEAR_RATIO;
@@ -999,12 +1033,12 @@ void goto_angle(float angle, PID_t pid_t) {
 //		cur_angle = exp_angle_filter * (float) MPU6050.KalmanAngleX + (1-exp_angle_filter) * cur_angle;
 		cur_angle = (float) MPU6050.KalmanAngleX;
 //		 && fabs(angle - cur_angle) > 1.0
-		if (pid_need_compute(backBalance_pid) ) {
+		if (pid_need_compute(backBalance_pid)) {
 			backBalance_setpoint = angle;
 			backBalance_input = cur_angle;
 			pid_compute(backBalance_pid);
 			speed[BACK_INDEX] = backBalance_output;
-			cur_pos = (int)encoderBack.encoder_pos;
+			cur_pos = (int) encoderBack.encoder_pos;
 			prev_speed_t = HAL_GetTick();
 //			if (speed[BACK_INDEX] < 5 && speed[BACK_INDEX] >= 0) speed[BACK_INDEX] = 5;
 //			else if (speed[BACK_INDEX] > -5 && speed[BACK_INDEX] < 0) speed[BACK_INDEX] = -5;
@@ -1017,7 +1051,8 @@ void goto_angle(float angle, PID_t pid_t) {
 		}
 	} else if (pid_t == frontBalance_pid) {
 		cur_angle = (float) MPU6050.KalmanAngleX;
-		if (pid_need_compute(frontBalance_pid) && fabs(angle - cur_angle) > 1.0) {
+		if (pid_need_compute(frontBalance_pid)
+				&& fabs(angle - cur_angle) > 1.0) {
 			frontBalance_setpoint = angle;
 			frontBalance_input = cur_angle;
 			pid_compute(frontBalance_pid);
