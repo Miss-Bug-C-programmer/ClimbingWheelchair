@@ -71,7 +71,6 @@ const uint32_t MAX_BACK_ALLOWABLE_ENC = 3000;
 const uint32_t MIN_BACK_ALLOWABLE_ENC = 7200;
 const uint32_t MAX_BACK_CLIMBING_ENC = 1800; //used when climbing down
 
-
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -115,7 +114,6 @@ int base_speedLevel = 1; //change the speed level if need higher speed
 //Lifting Mode
 //State
 Operation_Mode lifting_mode = RETRACTION; //0 is normal operation, 1 is lifting up, 2 is lifitng down, -1 is retraction
-uint8_t retraction_mode = 0;
 bool front_touchdown = false; //Record the state of climbing wheel whether contact with ground
 bool back_touchdown = false;
 
@@ -132,8 +130,7 @@ bool climb_first_iteration = true;
 //-----------------------------------------------------------------------------------------------
 //Climbing landing motor
 Motor_TypeDef rearMotor, backMotor; //declare in bd25l.c
-float speed[2] =
-{ 0 }; //range: 0 - 100
+float speed[2] = { 0 }; //range: 0 - 100
 EncoderHandle encoderBack, encoderFront;
 float prev_angle_tick = 0;
 float prev_angle = 0;
@@ -163,17 +160,6 @@ int back_encoder_input = 0;
 //Hub Motor UART receive
 uint8_t receive_buf[15];
 Encoder_Feedback hub_encoder_feedback;
-Encoder_Feedback prev_hub_encoder_feedback;
-bool first_encoder_callback = true;
-//ClimbWheel need to be removed after fully automated
-WheelSpeed climbWheelSpeed =
-{ .accel_loop = 100.0f, .decel_loop = 200.0f, .left_speed_step = 5.0,
-		.right_speed_step = 5.0 };
-const float climb_linSpeedLevel[3] =
-{ 1000.0f, 3000.0f, 4000.0f };
-const float climb_angSpeedLevel[3] =
-{ 500.0f, 1500.0f, 2000.0f };
-int climb_speedLevel = 0; //change the speed level if need higher speed
 
 float climbForward_speed = 0; //rad/s
 float forward_distance = BASE_LENGTH + 0.05; // (in meter) distance to travel during climbing process by hub
@@ -186,8 +172,8 @@ bool is_lifting = false;
 //	TEST = 0, NORMAL
 //};
 //enum Mode state = NORMAL;
-int state_count = 0;
-float dist = 0.386;
+//int state_count = 0;
+//float dist = 0.386;
 
 /* USER CODE END PV */
 
@@ -196,7 +182,6 @@ void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
 void baseMotorCommand(void);
 bool climbingForward(float dist); //return true if in the process of moving forward
-void reinitialize(void);
 bool goto_pos(int enc, PID_t pid_t); //return true if still in the process of reaching the position
 /* USER CODE END PFP */
 
@@ -471,7 +456,6 @@ int main(void)
 //			}
 //			runMotor(&backMotor, speed[BACK_INDEX]);
 
-
 			//---------------------------------------------------------------------------------------------------
 			//Final Code
 			//1. Climbing wheel extension
@@ -523,8 +507,8 @@ int main(void)
 				HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);
 //				wheel_Control(&baseWheelSpeed);
 //				baseMotorCommand();
-				goto_pos(0, frontClimb_pid);
-				goto_pos(0, backClimb_pid);
+//				goto_pos(0, frontClimb_pid);
+//				goto_pos(0, backClimb_pid);
 				front_touchdown = false;
 				back_touchdown = false;
 				climb_first_iteration = true;
@@ -545,11 +529,10 @@ int main(void)
 					back_lifting_height = BACK_BASE_HEIGHT + curb_height
 							- HUB_DIAMETER / 2;
 					back_lifting_angle =
-							TO_DEG(
-									(float )acos(
-											-back_lifting_height
-													/ CLIMBING_LEG_LENGTH))
-									- 30.0; //30.0 is the bending angle of the extender(originally 36.6).
+					TO_DEG(
+							(float )acos(
+									-back_lifting_height
+									/ CLIMBING_LEG_LENGTH)) - 30.0; //30.0 is the bending angle of the extender(originally 36.6).
 					back_encoder_input = (back_lifting_angle / 360.0)
 							* (4096 * BACK_GEAR_RATIO);
 
@@ -609,12 +592,6 @@ int main(void)
 				HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_SET);
 				if (climb_first_iteration)
 				{
-					//If curb_height is positive, should be climbing up process and vice versa
-					curb_height = CLIMBING_LEG_LENGTH
-							* cos(TO_RAD(encoderFront.angleDeg)) + BASE_HEIGHT
-							- FRONT_CLIMB_WHEEL_DIAMETER / 2.0;
-					curb_height += 0.0205; //Small error correction 10%
-
 					front_climbDown_enc = encoderFront.encoder_pos
 							+ 3.0 / 360.0 * 4096 * FRONT_GEAR_RATIO;
 
@@ -669,8 +646,8 @@ int main(void)
 			if (lifting_mode == RETRACTION)
 			{
 				//retraction process
-				goto_pos(0, frontClimb_pid);
-				goto_pos(0, backClimb_pid);
+				goto_pos(MIN_FRONT_ALLOWABLE_ENC + 500, frontClimb_pid);
+				goto_pos(MIN_BACK_ALLOWABLE_ENC + 500, backClimb_pid);
 				if (fabs(speed[FRONT_INDEX] < 4) && fabs(speed[BACK_INDEX] < 4))
 				{
 					pid_reset(frontClimb_pid);
@@ -803,14 +780,6 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 				hub_encoder_feedback.encoder_2 = (receive_buf[13] << 24)
 						+ (receive_buf[12] << 16) + (receive_buf[11] << 8)
 						+ (receive_buf[10]);
-				if (first_encoder_callback)
-				{
-					prev_hub_encoder_feedback.encoder_1 =
-							hub_encoder_feedback.encoder_1;
-					prev_hub_encoder_feedback.encoder_2 =
-							hub_encoder_feedback.encoder_2;
-					first_encoder_callback = false;
-				}
 			}
 		}
 	}
@@ -908,15 +877,6 @@ bool climbingForward(float dist)
 	}
 }
 
-void reinitialize(void)
-{
-	front_touchdown = false;
-	back_touchdown = false;
-	lifting_mode = NORMAL;
-	retraction_mode = 0;
-	forward_distance = BASE_LENGTH;
-}
-
 bool goto_pos(int enc, PID_t pid_t)
 {
 //	&& encoderFront.encoder_pos >= MIN_FRONT_ALLOWABLE_ENC 	&& cur_enc_pos <= MAX_FRONT_ALLOWABLE_ENC
@@ -925,7 +885,9 @@ bool goto_pos(int enc, PID_t pid_t)
 	if (pid_t == frontClimb_pid)
 	{
 		cur_enc_pos = (int) encoderFront.encoder_pos;
-		if (pid_need_compute(frontClimb_pid) && fabs(enc - cur_enc_pos) > 10)
+		if (pid_need_compute(frontClimb_pid) && fabs(enc - cur_enc_pos) > 10
+				&& ((encoderFront.encoder_pos >= 0 && encoderFront.encoder_pos < MAX_FRONT_ALLOWABLE_ENC)
+						|| (encoderFront.encoder_pos > MIN_FRONT_ALLOWABLE_ENC && encoderFront.encoder_pos <= 4096 * FRONT_GEAR_RATIO)))
 		{
 			// Read process feedback
 			if (cur_enc_pos > MAX_FRONT_ALLOWABLE_ENC)
@@ -950,7 +912,9 @@ bool goto_pos(int enc, PID_t pid_t)
 	else if (pid_t == backClimb_pid)
 	{
 		cur_enc_pos = (int) encoderBack.encoder_pos;
-		if (pid_need_compute(backClimb_pid) && fabs(enc - cur_enc_pos) > 10)
+		if (pid_need_compute(backClimb_pid) && fabs(enc - cur_enc_pos) > 10
+				&& ((encoderBack.encoder_pos >= 0 && encoderBack.encoder_pos < MAX_BACK_ALLOWABLE_ENC)
+						|| (encoderBack.encoder_pos > MIN_BACK_ALLOWABLE_ENC && encoderBack.encoder_pos <= 4096 * BACK_GEAR_RATIO)))
 		{
 			// Read process feedback
 			if (cur_enc_pos > MAX_BACK_ALLOWABLE_ENC)
