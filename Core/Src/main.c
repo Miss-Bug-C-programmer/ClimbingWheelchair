@@ -71,10 +71,7 @@ const uint32_t MAX_BACK_ALLOWABLE_ENC = 3000;
 const uint32_t MIN_BACK_ALLOWABLE_ENC = 7200;
 const uint32_t MAX_BACK_CLIMBING_ENC = 1800; //used when climbing down
 
-enum Mode
-{
-	TEST = 0, NORMAL
-};
+
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -117,7 +114,7 @@ int base_speedLevel = 1; //change the speed level if need higher speed
 
 //Lifting Mode
 //State
-int8_t lifting_mode = -1; //0 is normal operation, 1 is lifting up, 2 is lifitng down, -1 is retraction
+Operation_Mode lifting_mode = RETRACTION; //0 is normal operation, 1 is lifting up, 2 is lifitng down, -1 is retraction
 uint8_t retraction_mode = 0;
 bool front_touchdown = false; //Record the state of climbing wheel whether contact with ground
 bool back_touchdown = false;
@@ -184,7 +181,11 @@ bool is_lifting = false;
 //-----------------------------------------------------------------------------------------------
 //Debug Test
 //-----------------------------------------------------------------------------------------------
-enum Mode state = NORMAL;
+//enum Mode
+//{
+//	TEST = 0, NORMAL
+//};
+//enum Mode state = NORMAL;
 int state_count = 0;
 float dist = 0.386;
 
@@ -479,7 +480,7 @@ int main(void)
 			//---------------------------------------------------------------------------------------------------
 			//when button3 is pressed, Extend climbing wheel until both wheel touches the ground
 			if (button3.state == 1 && front_touchdown == false
-					&& back_touchdown == false && lifting_mode == 0)
+					&& back_touchdown == false && lifting_mode == NORMAL)
 			{
 				emBrakeMotor(1);
 				while (front_touchdown == false || back_touchdown == false)
@@ -493,10 +494,10 @@ int main(void)
 
 					//if front touch before back, climbing up process
 					if (back_touchdown == 0 && front_touchdown == 1)
-						lifting_mode = 1;
+						lifting_mode = CLIMB_UP;
 					//if back touch before front, climbing down process
 					else if (back_touchdown == 1 && front_touchdown == 0)
-						lifting_mode = 2;
+						lifting_mode = CLIMB_DOWN;
 
 					initial_angle = exp_angle_filter * MPU6050.KalmanAngleX
 							+ (1 - exp_angle_filter) * initial_angle;
@@ -516,7 +517,7 @@ int main(void)
 				continue; //to refresh the loop and get the latest encoder reading
 			}
 			//Normal wheelchair mode, basic joystick control mode
-			if (lifting_mode == 0)
+			if (lifting_mode == NORMAL)
 			{
 				HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
 				HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);
@@ -529,7 +530,7 @@ int main(void)
 				climb_first_iteration = true;
 			}
 			//Climbing up process
-			if (lifting_mode == 1)
+			if (lifting_mode == CLIMB_UP)
 			{
 				HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
 				if (climb_first_iteration)
@@ -555,7 +556,7 @@ int main(void)
 					if (isnan(back_lifting_angle)
 							|| back_encoder_input >= MAX_BACK_ALLOWABLE_ENC)
 					{
-						lifting_mode = 0;
+						lifting_mode = NORMAL;
 						continue;
 					}
 
@@ -597,12 +598,12 @@ int main(void)
 				//If finish lifting and climbing forward, its safe to return back to normal operation mode
 				if (is_lifting == false && !(climbingForward(forward_distance)))
 				{
-					lifting_mode = -1;
+					lifting_mode = RETRACTION;
 					HAL_Delay(500);
 				}
 			}
 
-			else if (lifting_mode == 2)
+			else if (lifting_mode == CLIMB_DOWN)
 			{
 				//Climbing down process
 				HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_SET);
@@ -620,7 +621,7 @@ int main(void)
 					//First determine whether is the height climb-able
 					if (front_climbDown_enc > MAX_FRONT_ALLOWABLE_ENC)
 					{
-						lifting_mode = 0;
+						lifting_mode = NORMAL;
 						continue;
 					}
 					climb_first_iteration = false;
@@ -659,13 +660,13 @@ int main(void)
 				//If finish lifting and climbing forward, its safe to return back to normal operation mode
 				if (is_lifting == false && !(climbingForward(forward_distance)))
 				{
-					lifting_mode = -1;
+					lifting_mode = RETRACTION;
 					HAL_Delay(500);
 					continue;
 				}
 			}
 
-			if (lifting_mode == -1)
+			if (lifting_mode == RETRACTION)
 			{
 				//retraction process
 				goto_pos(0, frontClimb_pid);
@@ -674,7 +675,7 @@ int main(void)
 				{
 					pid_reset(frontClimb_pid);
 					pid_reset(backClimb_pid);
-					lifting_mode = 0;
+					lifting_mode = NORMAL;
 					HAL_Delay(500);
 				}
 			}
@@ -911,7 +912,7 @@ void reinitialize(void)
 {
 	front_touchdown = false;
 	back_touchdown = false;
-	lifting_mode = 0;
+	lifting_mode = NORMAL;
 	retraction_mode = 0;
 	forward_distance = BASE_LENGTH;
 }

@@ -10,6 +10,7 @@
 #include <string.h>
 #include "main.h"
 #include "X2_6010S.h"
+#include <stdbool.h>
 
 #define MOTOR_TIM htim3
 #define LEFT_MOTOR_CHANNEL CCR2

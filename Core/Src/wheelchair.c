@@ -4,7 +4,6 @@
  */
 
 #include "wheelchair.h"
-
 JoystickHandle hJoystick;
 extern TIM_HandleTypeDef htim3;
 

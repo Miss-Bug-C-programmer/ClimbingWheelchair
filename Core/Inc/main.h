@@ -37,14 +37,17 @@ extern "C" {
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
-typedef enum {
-	false, true
-} bool;
+
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/
 /* USER CODE BEGIN EC */
-
+typedef enum{
+	NORMAL = 0,
+	CLIMB_UP,
+	CLIMB_DOWN,
+	RETRACTION
+}Operation_Mode;
 /* USER CODE END EC */
 
 /* Exported macro ------------------------------------------------------------*/

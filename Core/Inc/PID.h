@@ -23,7 +23,7 @@
 /*		Includes and dependencies			*/
 /*-------------------------------------------------------------*/
 #include <stm32f4xx.h>
-//#include <stdbool.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include "main.h"
 /*-------------------------------------------------------------*/
