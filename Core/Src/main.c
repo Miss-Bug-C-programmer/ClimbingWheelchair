@@ -31,6 +31,7 @@
 /* USER CODE BEGIN Includes */
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdbool.h>
 #include "adc.h"
 #include "encoder.h"
@@ -65,10 +66,10 @@ const float BACK_BASE_HEIGHT = 0.15;
 //ALLOWABLE is the maximum pos the climbing wheel can turn
 //FRONT_CLIMBING is the pos that the base above the climbing wheel w
 const uint32_t MAX_FRONT_ALLOWABLE_ENC = 3100;
-const uint32_t MIN_FRONT_ALLOWABLE_ENC = 7500;
+const uint32_t MIN_FRONT_ALLOWABLE_ENC = 7000;
 const uint32_t MAX_FRONT_CLIMBING_ENC = 2000; //used for climbing up
 const uint32_t MAX_BACK_ALLOWABLE_ENC = 3000;
-const uint32_t MIN_BACK_ALLOWABLE_ENC = 7200;
+const uint32_t MIN_BACK_ALLOWABLE_ENC = 7000;
 const uint32_t MAX_BACK_CLIMBING_ENC = 1800; //used when climbing down
 
 /* USER CODE END PM */
@@ -103,8 +104,8 @@ int tempJoyRawDataX, tempJoyRawDataY;
 
 //Wheelchair Base wheel control
 WheelSpeed baseWheelSpeed =
-{ .accel_loop = 100.0f, .decel_loop = 200.0f, .left_speed_step = 5.0,
-		.right_speed_step = 5.0 };
+{ .accel_loop = 100.0f, .decel_loop = 100.0f, .left_speed_step = 3.0,
+		.right_speed_step = 3.0 };
 const float base_linSpeedLevel[3] =
 { 200.0f, 300.0f, 400.0f };
 const float base_angSpeedLevel[3] =
@@ -167,12 +168,12 @@ bool is_lifting = false;
 //-----------------------------------------------------------------------------------------------
 //Debug Test
 //-----------------------------------------------------------------------------------------------
-//enum Mode
-//{
-//	TEST = 0, NORMAL
-//};
-//enum Mode state = NORMAL;
-//int state_count = 0;
+enum Mode
+{
+	TEST = 0, NORMAL_DEBUG
+};
+enum Mode state = NORMAL_DEBUG;
+int state_count = 0;
 //float dist = 0.386;
 
 /* USER CODE END PV */
@@ -183,6 +184,7 @@ void SystemClock_Config(void);
 void baseMotorCommand(void);
 bool climbingForward(float dist); //return true if in the process of moving forward
 bool goto_pos(int enc, PID_t pid_t); //return true if still in the process of reaching the position
+bool in_climb_process(int front_enc, int back_enc);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -232,9 +234,9 @@ int main(void)
 	MX_SPI1_Init();
 	/* USER CODE BEGIN 2 */
 	//Initialize hardware communication
-//	joystick_Init();
-//	ADC_Init();
-//	ADC_DataRequest();
+	joystick_Init();
+	ADC_Init();
+	ADC_DataRequest();
 	ENCODER_Init();
 //	  DWT_Init();
 
@@ -264,9 +266,6 @@ int main(void)
 	//Initialize hub motor provided joystick control
 	hubMotor_Init();
 	send_HubMotor(0, 0);
-	wheelSpeedControl_Init(&climbWheelSpeed,
-			climb_linSpeedLevel[climb_speedLevel],
-			climb_angSpeedLevel[climb_speedLevel]);
 
 	//Initialize front and back climbing position controller
 	frontClimb_pid = pid_create(&frontClimb_ctrl, &frontClimb_input,
@@ -347,13 +346,11 @@ int main(void)
 		//      MOTOR_TIM.Instance->LEFT_MOTOR_CHANNEL -= 50;
 		//      runMotor(&backMotor, 100, 1);
 
-		//      runMotor(&backMotor, speed++, 1);xia
-//		ENCODER_Get_Angle(&encoderBack);
-//		ENCODER_Get_Angle(&encoderFront);
+		//      runMotor(&backMotor, speed++, 1);
 		//Loop should execute once every 1 tick
 		if (HAL_GetTick() - prev_time >= 1)
 		{
-			//	ADC_DataRequest();
+			ADC_DataRequest();
 			ENCODER_Read(&encoderBack);
 			ENCODER_Read(&encoderFront);
 
@@ -389,46 +386,22 @@ int main(void)
 //			else if (button2.state == GPIO_PIN_RESET)
 //				speed[BACK_INDEX] = 0;
 
-//			curb_height = CLIMBING_LEG_LENGTH* cos(TO_RAD(encoderFront.angleDeg)) + BASE_HEIGHT- FRONT_CLIMB_WHEEL_DIAMETER / 2.0;
-//			curb_height += 0.0205; //Small error correction 10%
-
-//			goto_pos(0,backClimb_pid);
-//			runMotor(&rearMotor, speed[FRONT_INDEX]);
-//			runMotor(&backMotor, speed[BACK_INDEX]);
-
-			//Prevent wheelchair from being pulled by the hub motor during lifting up process
-//			if (speed[BACK_INDEX] != 0
-//					&& GPIO_Digital_Filtered_Input(&backLS1, 5)
-//					&& GPIO_Digital_Filtered_Input(&backLS2, 5)) {
-//				double dt = (HAL_GetTick() - prev_angle_tick)
-//						/ (float) FREQUENCY;
-//				climbForward_speed = CLIMBING_LEG_LENGTH
-//						* (sin(TO_RAD(prev_angle))
-//								- sin(TO_RAD(encoderBack.angleDeg))) / dt; //unit: m/s,
-//				climbForward_speed = climbForward_speed / (HUB_DIAMETER / 2);
-//				//Convert hub speed into pulse/second
-//				send_HubMotor(climbForward_speed, climbForward_speed);
-//				prev_angle = encoderBack.angleDeg;
-//				prev_angle_tick = HAL_GetTick();
-//			} else
-//				send_HubMotor(0, 0);
-//			climbingForward(dist);
 			//---------------------------------------------------------------------------------------------------
 			//Testing Climbing Position Control
 			//---------------------------------------------------------------------------------------------------
 //			if (button2.state == GPIO_PIN_SET && state_count++ > 10) {
 //				state_count = 0;
 //				if (state == TEST) {
-//					state = NORMAL;
-//				} else if (state == NORMAL)
+//					state = NORMAL_DEBUG;
+//				} else if (state == NORMAL_DEBUG)
 //					state = TEST;
 //			}
 //			if (state == TEST) {
-//				goto_pos(0, backClimb_pid);
-//				goto_pos(0, frontClimb_pid);
+//				goto_pos(MIN_BACK_ALLOWABLE_ENC + 300, backClimb_pid);
+//				goto_pos(MIN_FRONT_ALLOWABLE_ENC + 300, frontClimb_pid);
 //			}
-//
-//			if (state == NORMAL) {
+
+//			if (state == NORMAL_DEBUG) {
 //				if (button1.state == GPIO_PIN_SET
 //						&& button3.state == GPIO_PIN_RESET)
 //					speed[FRONT_INDEX] = 30;
@@ -438,12 +411,12 @@ int main(void)
 //				else if (button1.state == GPIO_PIN_RESET)
 //					speed[FRONT_INDEX] = 0;
 //				pid_reset(frontClimb_pid);
-//				curb_height = CLIMBING_LEG_LENGTH * cos(TO_RAD(encoderFront.angleDeg)) + BASE_HEIGHT - FRONT_CLIMB_WHEEL_DIAMETER / 2.0;
-//				curb_height -= 0.01;
+////				curb_height = CLIMBING_LEG_LENGTH * cos(TO_RAD(encoderFront.angleDeg)) + BASE_HEIGHT - FRONT_CLIMB_WHEEL_DIAMETER / 2.0;
+////				curb_height -= 0.01;
 //			}
 //			runMotor(&rearMotor, speed[FRONT_INDEX]);
 
-//			if (state == NORMAL) {
+//			if (state == NORMAL_DEBUG) {
 //				if (button1.state == GPIO_PIN_SET
 //						&& button3.state == GPIO_PIN_RESET)
 //					speed[BACK_INDEX] = 30;
@@ -505,10 +478,8 @@ int main(void)
 			{
 				HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
 				HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);
-//				wheel_Control(&baseWheelSpeed);
-//				baseMotorCommand();
-//				goto_pos(0, frontClimb_pid);
-//				goto_pos(0, backClimb_pid);
+				wheel_Control(&baseWheelSpeed);
+				baseMotorCommand();
 				front_touchdown = false;
 				back_touchdown = false;
 				climb_first_iteration = true;
@@ -536,50 +507,21 @@ int main(void)
 					back_encoder_input = (back_lifting_angle / 360.0)
 							* (4096 * BACK_GEAR_RATIO);
 
+					//3 different scenerio to abort the climbing up task
+					//1. The angle calculated is not feasible
+					//2. The leg rotate more than it supposed to
+					//3. The curb height is too low where climbing up is unnecessary
 					if (isnan(back_lifting_angle)
-							|| back_encoder_input >= MAX_BACK_ALLOWABLE_ENC)
+							|| back_encoder_input >= MAX_BACK_ALLOWABLE_ENC
+								|| curb_height <= 0.05 )
 					{
 						lifting_mode = NORMAL;
 						continue;
 					}
-
 					climb_first_iteration = false;
 				}
 
-				//1. lift the front climbing wheel up until it reach it maximum pos
-				//The process is controlled by PID on the front climbing wheel
-				//the maximum pos is when the climbing wheel is below the wheelchair base
-				goto_pos(MAX_FRONT_CLIMBING_ENC, frontClimb_pid);
-				goto_pos(back_encoder_input, backClimb_pid);
-				if (fabs(speed[FRONT_INDEX] >= 4)
-						|| fabs(speed[BACK_INDEX] >= 4))
-					is_lifting = true;
-				else
-					is_lifting = false;
-
-				//2. During lifting, due to fixed point at the back climbing wheel.
-				//The wheelchair would be pulled back if the back wheel not traveling while the its lifting
-				//Therefore, lifting of back wheel and hub motor need to work at the same time to make sure the wheelchair is not moving back.
-				//Pull back of wheelchair would cause the front climbing wheel to slip from the curb
-				if (is_lifting == true && speed[BACK_INDEX] != 0)
-				{
-					double dt = (HAL_GetTick() - prev_angle_tick)
-							/ (float) FREQUENCY;
-					climbForward_speed = CLIMBING_LEG_LENGTH
-							* (sin(TO_RAD(prev_angle))
-									- sin(TO_RAD(encoderBack.angleDeg))) / dt; //unit: m/s,
-					climbForward_speed = climbForward_speed
-							/ (HUB_DIAMETER / 2);
-					//Convert hub speed into pulse/second
-					send_HubMotor(climbForward_speed, climbForward_speed);
-					prev_angle = encoderBack.angleDeg;
-					prev_angle_tick = HAL_GetTick();
-				}
-				else if (is_lifting == true && speed[BACK_INDEX] == 0)
-					send_HubMotor(0, 0);
-
-				//If finish lifting and climbing forward, its safe to return back to normal operation mode
-				if (is_lifting == false && !(climbingForward(forward_distance)))
+				if (!in_climb_process(MAX_FRONT_CLIMBING_ENC, back_encoder_input) && !(climbingForward(forward_distance)))
 				{
 					lifting_mode = RETRACTION;
 					HAL_Delay(500);
@@ -604,56 +546,21 @@ int main(void)
 					climb_first_iteration = false;
 				}
 
-				//1. Back lift until the wheel is below the base
-				goto_pos(MAX_BACK_CLIMBING_ENC, backClimb_pid);
-				goto_pos(front_climbDown_enc, frontClimb_pid);
-				if (fabs(speed[FRONT_INDEX] >= 4)
-						|| fabs(speed[BACK_INDEX] >= 4))
-					is_lifting = true;
-				else
-					is_lifting = false;
-
-				//2. During lifting, due to fixed point at the back climbing wheel.
-				//The wheelchair would be pulled back if the back wheel not traveling while the its lifting
-				//Therefore, lifting of back wheel and hub motor need to work at the same time to make sure the wheelchair is not moving back.
-				//Pull back of wheelchair would cause the front climbing wheel to slip from the curb
-				if (is_lifting == true && speed[BACK_INDEX] != 0)
-				{
-					double dt = (HAL_GetTick() - prev_angle_tick)
-							/ (float) FREQUENCY;
-					climbForward_speed = CLIMBING_LEG_LENGTH
-							* (sin(TO_RAD(prev_angle))
-									- sin(TO_RAD(encoderBack.angleDeg))) / dt; //unit: m/s,
-					climbForward_speed = climbForward_speed
-							/ (HUB_DIAMETER / 2);
-					//Convert hub speed into pulse/second
-					send_HubMotor(climbForward_speed, climbForward_speed);
-					prev_angle = encoderBack.angleDeg;
-					prev_angle_tick = HAL_GetTick();
-				}
-				else if (is_lifting == true && speed[BACK_INDEX] == 0)
-					send_HubMotor(0, 0);
-
-				//If finish lifting and climbing forward, its safe to return back to normal operation mode
-				if (is_lifting == false && !(climbingForward(forward_distance)))
+				if (!in_climb_process(front_climbDown_enc, MAX_BACK_CLIMBING_ENC) && !(climbingForward(forward_distance)))
 				{
 					lifting_mode = RETRACTION;
 					HAL_Delay(500);
-					continue;
 				}
 			}
 
 			if (lifting_mode == RETRACTION)
 			{
 				//retraction process
-				goto_pos(MIN_FRONT_ALLOWABLE_ENC + 500, frontClimb_pid);
-				goto_pos(MIN_BACK_ALLOWABLE_ENC + 500, backClimb_pid);
-				if (fabs(speed[FRONT_INDEX] < 4) && fabs(speed[BACK_INDEX] < 4))
+				goto_pos(MIN_BACK_ALLOWABLE_ENC + 300, backClimb_pid);
+				goto_pos(MIN_FRONT_ALLOWABLE_ENC + 300, frontClimb_pid);
+				if (fabs(speed[FRONT_INDEX] < 4) && fabs(speed[BACK_INDEX]) < 4)
 				{
-					pid_reset(frontClimb_pid);
-					pid_reset(backClimb_pid);
 					lifting_mode = NORMAL;
-					HAL_Delay(500);
 				}
 			}
 
@@ -743,8 +650,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 	{
 		if (HAL_GetTick() - prev_adc_time > 1)
 		{
-			ADC_Read(&adc_rawData[0]);
-			tempJoyRawDataX = adc_rawData[0];
+			ADC_Read(adc_rawData);
+			tempJoyRawDataX = adc_rawData[2];
 			tempJoyRawDataY = adc_rawData[1];
 			prev_adc_time = HAL_GetTick();
 		}
@@ -938,6 +845,57 @@ bool goto_pos(int enc, PID_t pid_t)
 	return false;
 }
 
+bool in_climb_process(int front_enc, int back_enc){
+	bool is_lifting;
+	static bool first_loop = true;
+	static uint32_t prev_angle_tick = 0;
+	static float prev_angle = 0;
+	float climbForward_speed = 0;
+
+	if (first_loop)
+	{
+		prev_angle = encoderBack.angleDeg;
+		prev_angle_tick = HAL_GetTick();
+		first_loop = false;
+	}
+
+	//1. lift the front climbing wheel up until it reach it maximum pos
+	//The process is controlled by PID on the front climbing wheel
+	//the maximum pos is when the climbing wheel is below the wheelchair base
+	goto_pos(front_enc, frontClimb_pid);
+	goto_pos(back_enc, backClimb_pid);
+
+	if (fabs(speed[FRONT_INDEX] >= 4)
+			|| fabs(speed[BACK_INDEX] >= 4))
+		is_lifting = true;
+	else
+		is_lifting = false;
+
+	//2. During lifting, due to fixed point at the back climbing wheel.
+	//The wheelchair would be pulled back if the back wheel not traveling while the its lifting
+	//Therefore, lifting of back wheel and hub motor need to work at the same time to make sure the wheelchair is not moving back.
+	//Pull back of wheelchair would cause the front climbing wheel to slip from the curb
+	if (is_lifting == true && speed[BACK_INDEX] != 0)
+	{
+		double dt = (HAL_GetTick() - prev_angle_tick)
+				/ (float) FREQUENCY;
+		climbForward_speed = CLIMBING_LEG_LENGTH
+				* (sin(TO_RAD(prev_angle))
+						- sin(TO_RAD(encoderBack.angleDeg))) / dt; //unit: m/s,
+		climbForward_speed = climbForward_speed
+				/ (HUB_DIAMETER / 2);
+		//Convert hub speed into pulse/second
+		send_HubMotor(climbForward_speed, climbForward_speed);
+		prev_angle = encoderBack.angleDeg;
+		prev_angle_tick = HAL_GetTick();
+	}
+	else if (is_lifting == true && speed[BACK_INDEX] == 0)
+		send_HubMotor(0, 0);
+
+	if (!is_lifting) first_loop = true;
+	return is_lifting;
+
+}
 /* USER CODE END 4 */
 
 /**

@@ -154,8 +154,6 @@ void pid_direction(PID_t pid, enum pid_control_directions dir)
 }
 
 void pid_reset(PID_t pid){
-	*(pid->output) = 0;
-	*(pid->input)  = 0;
 	pid->iterm = *(pid->output);
 	pid->lastin = *(pid->input);
 }

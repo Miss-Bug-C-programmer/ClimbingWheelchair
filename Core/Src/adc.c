@@ -62,11 +62,6 @@ void ADC_DataRequest(void)
 {
 	AD7606_CV_LOW;
 	AD7606_CV_HIGH;
-//	HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
-//		HAL_Delay(500);
-//		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
-//		 HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);
-//		      HAL_Delay(5000);
 }
 
 

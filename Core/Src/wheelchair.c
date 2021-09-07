@@ -7,9 +7,9 @@
 JoystickHandle hJoystick;
 extern TIM_HandleTypeDef htim3;
 
-static const int JoystickCenterX = 16200;
-static const int JoystickCenterY = 16000;
-static const int JoystickMagnitudeMax = 11000;
+static const int JoystickCenterX = 32000;
+static const int JoystickCenterY = 32000;
+static const int JoystickMagnitudeMax = 18000;
 static const int JoystickMagnitudeMin = 3000;
 static const int JoyPosBufferSize = 5;
 static int joyPosBuffer[2][5] = {0};
@@ -27,8 +27,13 @@ void joystickCalculatePos(void)
   if (joy_pos_buffer_cnt == JoyPosBufferSize)
     joy_pos_buffer_cnt = 0;
 
-  joyPosBuffer[0][joy_pos_buffer_cnt] = tempJoyRawDataX - JoystickCenterX;
-  joyPosBuffer[1][joy_pos_buffer_cnt] = tempJoyRawDataY - JoystickCenterY;
+  tempJoyRawDataX = (tempJoyRawDataX < 0)? tempJoyRawDataX + JoystickCenterX : tempJoyRawDataX - JoystickCenterX;
+  tempJoyRawDataY = (tempJoyRawDataY > 0)? JoystickCenterY - tempJoyRawDataY:  -tempJoyRawDataY - JoystickCenterX;
+
+
+
+  joyPosBuffer[0][joy_pos_buffer_cnt] = tempJoyRawDataX;
+  joyPosBuffer[1][joy_pos_buffer_cnt] = tempJoyRawDataY;
 
   // calculate joystick position average from the buffer
   int sum_x = 0;
