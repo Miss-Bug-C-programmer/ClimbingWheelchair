@@ -2,7 +2,7 @@
 
 This repo focus on the program  in the embedded system(STM32F429VI) on the wheelchair.
 
-The objective of the project is to allow the wheelchair user climbing up and down a curb with maximum height of 20.0cm safely and smoothly.
+The objective of the project is to allow the wheelchair user climbing up and down a curb with maximum height of 20.0 cm safely.
 
 ## Requirement
 - STM32CubeIDE > 1.7.0
