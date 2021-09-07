@@ -23,11 +23,12 @@ Therefore, if the code regenerated through CubeMX, the code added will be saved.
 ## Hardware and Peripheral Used
 | Hardware | Peripheral Used | File related |
 | --- | ----------- | ----------- |
-| Joystick (AD7606) | SPI1 | spi.c / adc.c / wheelchair.c /  main.c |
+| Joystick (AD7606) | SPI1 | spi.c / adc.c / wheelchair.c /  \*main.c |
 | Climbing motor (BD25L) | Rear: TIM8 CH4  Back: TIM1 CH2 | tim.c / bd25l.c |
-| Climbing motor encoder | CAN1 / DMA1 | can.c / dma.c / encoder.c / main.c |
+| Climbing motor encoder | CAN1 / DMA1 | can.c / dma.c / encoder.c / \*main.c |
 | MPU6050 | I2C1 | i2c.c / mpu6050.c |
-| Hub Motor (X2_6010S) | UART3 | uart.c / X2_6010S.c / main.c |
+| Hub Motor (X2_6010S) | UART3 | uart.c / X2_6010S.c / \*main.c |
+| Base motor (Sabertooth | TIM3 (Right)CH1  (Left)CH2| main.c / wheelchair.c |
 
 *\*main.c : callback function is called*
 
