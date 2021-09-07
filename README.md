@@ -1,7 +1,8 @@
 # Climbing Wheelchair
 
 This repo focus on the program  in the embedded system(STM32F429VI) on the wheelchair.
-The objective of the project is to allow the wheelchair user climbing up and down a curb safely and smoothly.
+
+The objective of the project is to allow the wheelchair user climbing up and down a curb with maximum height of 20.0cm safely and smoothly.
 
 ## Requirement
 - STM32CubeIDE > 1.7.0
@@ -32,7 +33,9 @@ Therefore, if the code regenerated through CubeMX, the code added will be saved.
 
 ## Usage
 In normal operation mode, the wheelchair could be used as usual by controlled through joystick input.
+
 To start climbing mode, user required to push the button to initiate sequence of action while the action could not be stopped in the middle of the process.
+
 The climbing action can be briefly explained as following step:
 - Both climbing wheel landed on the ground
 -   climbing process would be determined as `CLIMB_UP` or `CLIMB_DOWN` depends on which leg touches ground first
