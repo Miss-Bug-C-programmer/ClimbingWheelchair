@@ -28,10 +28,15 @@ Therefore, if the code regenerated through CubeMX, the code added will be saved.
 | MPU6050 | I2C1 | i2c.c / mpu6050.c |
 | Hub Motor (X2_6010S) | UART3 | uart.c / X2_6010S.c / main.c |
 
-*\*main.c indicate there is callback function in it*
+*\*main.c : callback function is called*
 
-
-
-
-
-
+## Usage
+In normal operation mode, the wheelchair could be used as usual by controlled through joystick input.
+To start climbing mode, user required to push the button to initiate sequence of action while the action could not be stopped in the middle of the process.
+The climbing action can be briefly explained as following step:
+- Both climbing wheel landed on the ground
+-   climbing process would be determined as `CLIMB_UP` or `CLIMB_DOWN` depends on which leg touches ground first
+- The wheelchair will start lifting itself up to appropriate height according to the curb height calculated from the encoder input
+- During lifting process, the wheelchair will maintain its position and make sure it would be lifted straight up by controlling the hub motor
+- Then, the wheelchair will start moving forward by distance of the wheelchair length to make sure both its wheel has passed the curb before retracting the leg
+- Last, both leg will be retract to its initial position and mark the end of the climbing process.
