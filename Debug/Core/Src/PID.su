@@ -7,4 +7,3 @@ PID.c:108:6:pid_limits	24	static
 PID.c:127:6:pid_auto	16	static
 PID.c:141:6:pid_manual	16	static
 PID.c:146:6:pid_direction	16	static
-PID.c:156:6:pid_reset	16	static

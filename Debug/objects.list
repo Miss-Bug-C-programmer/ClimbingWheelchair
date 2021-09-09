@@ -1,5 +1,4 @@
 "./Core/Src/PID.o"
-"./Core/Src/Variable.o"
 "./Core/Src/X2_6010S.o"
 "./Core/Src/adc.o"
 "./Core/Src/bd25l.o"

@@ -104,8 +104,9 @@ int tempJoyRawDataX, tempJoyRawDataY;
 
 //Wheelchair Base wheel control
 WheelSpeed baseWheelSpeed =
-{ .accel_loop = 100.0f, .decel_loop = 100.0f, .left_speed_step = 3.0,
-		.right_speed_step = 3.0 };
+
+{ .accel_loop = 100.0f, .decel_loop = 50.0f, .left_speed_step = 5,
+		.right_speed_step = 5 };
 const float base_linSpeedLevel[3] =
 { 200.0f, 300.0f, 400.0f };
 const float base_angSpeedLevel[3] =
@@ -439,7 +440,15 @@ int main(void)
 			if (button3.state == 1 && front_touchdown == false
 					&& back_touchdown == false && lifting_mode == NORMAL)
 			{
+				//Stop the base wheel completely
+				baseWheelSpeed.cur_r = 0;
+				baseWheelSpeed.cur_l = 0;
+				baseMotorCommand();
+
+				//Disengage the motor brake
 				emBrakeMotor(1);
+
+				//Start landing process
 				while (front_touchdown == false || back_touchdown == false)
 				{
 					if (GPIO_Digital_Filtered_Input(&rearLS1, 5)
@@ -745,7 +754,7 @@ void baseMotorCommand(void)
 	MOTOR_TIM.Instance->LEFT_MOTOR_CHANNEL = (int) baseWheelSpeed.cur_l + 1500;
 }
 
-//Move forward during climbing process
+//Hub motor move forward  by preset dist
 bool climbingForward(float dist)
 {
 	static int prev_tick = 0;
@@ -784,9 +793,9 @@ bool climbingForward(float dist)
 	}
 }
 
+//Control rear and back wheel to set encoder position using PID controller
 bool goto_pos(int enc, PID_t pid_t)
 {
-//	&& encoderFront.encoder_pos >= MIN_FRONT_ALLOWABLE_ENC 	&& cur_enc_pos <= MAX_FRONT_ALLOWABLE_ENC
 	int cur_enc_pos;
 
 	if (pid_t == frontClimb_pid)
@@ -845,6 +854,7 @@ bool goto_pos(int enc, PID_t pid_t)
 	return false;
 }
 
+//Lifting process with desired front and back encoder position
 bool in_climb_process(int front_enc, int back_enc){
 	bool is_lifting;
 	static bool first_loop = true;
