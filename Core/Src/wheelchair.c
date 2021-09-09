@@ -30,8 +30,6 @@ void joystickCalculatePos(void)
   tempJoyRawDataX = (tempJoyRawDataX < 0)? tempJoyRawDataX + JoystickCenterX : tempJoyRawDataX - JoystickCenterX;
   tempJoyRawDataY = (tempJoyRawDataY > 0)? JoystickCenterY - tempJoyRawDataY:  -tempJoyRawDataY - JoystickCenterX;
 
-
-
   joyPosBuffer[0][joy_pos_buffer_cnt] = tempJoyRawDataX;
   joyPosBuffer[1][joy_pos_buffer_cnt] = tempJoyRawDataY;
 
@@ -91,7 +89,7 @@ void wheelSpeedControl_Init(WheelSpeed* wheel, float max_lin_speed, float max_an
 
 void wheel_Control(WheelSpeed* wheel)
 {
-  if (wheel->stable_cnt < 100)
+  if (wheel->stable_cnt < 25)
   {
       wheel->stable_cnt++;
     return;
@@ -110,7 +108,6 @@ void wheel_Control(WheelSpeed* wheel)
 
     if (wheel->start_from_stationary)
     {
-//      float accel_loop = 100.0f;
       left_speed_step = fabs( wheel->cur_l) / wheel->accel_loop;
       right_speed_step = fabs( wheel->cur_l) / wheel->accel_loop;
 
@@ -133,30 +130,49 @@ void wheel_Control(WheelSpeed* wheel)
   }
   else
   {
-//    float decel_loop = 150.0f;
 
-    float zero_speed = wheel->max_linear_speed / wheel->decel_loop;
-    if (fabs(wheel->cur_l) < zero_speed)
-      wheel->cur_l = 0;
-    if (fabs(wheel->cur_r) < zero_speed)
-      wheel->cur_r = 0;
+//    float zero_speed = wheel->max_linear_speed / wheel->decel_loop;
+//    if (fabs(wheel->cur_l) < zero_speed)
+//      wheel->cur_l = 0;
+//    if (fabs(wheel->cur_r) < zero_speed)
+//      wheel->cur_r = 0;
 
-    float left_speed_step = fabs(wheel->cur_l) / wheel->decel_loop;
-    float right_speed_step = fabs(wheel->cur_r) / wheel->decel_loop;
-    
-    if (wheel->cur_l > left_speed_step)
-      wheel->cur_l = wheel->pre_r - left_speed_step;
-    else if (wheel->cur_l < -left_speed_step)
-      wheel->cur_l = wheel->pre_r + left_speed_step;
+//    float left_speed_step = fabs(wheel->cur_l) / wheel->decel_loop;
+//    float right_speed_step = fabs(wheel->cur_r) / wheel->decel_loop;
+//
+    float left_speed_step = 10;
+    float right_speed_step = 10;
+
+//    if (wheel->cur_l >= left_speed_step)
+//      wheel->cur_l = wheel->pre_l - left_speed_step;
+//    else if (wheel->cur_l < -left_speed_step)
+//      wheel->cur_l = wheel->pre_l + left_speed_step;
+//    else
+//      wheel->cur_l = 0;
+//
+//    if (wheel->cur_r > right_speed_step)
+//      wheel->cur_r = wheel->pre_r - right_speed_step;
+//    else if (wheel->cur_r < -right_speed_step)
+//      wheel->cur_r = wheel->pre_r + right_speed_step;
+//    else
+//      wheel->cur_r = 0;
+
+    if (wheel->pre_l > left_speed_step)
+      wheel->cur_l = wheel->pre_l - left_speed_step;
+    else if (wheel->pre_l < -left_speed_step)
+      wheel->cur_l = wheel->pre_l + left_speed_step;
     else
       wheel->cur_l = 0;
     
-    if (wheel->cur_r > right_speed_step)
+    if (wheel->pre_r > right_speed_step)
       wheel->cur_r = wheel->pre_r - right_speed_step;
-    else if (wheel->cur_r < -right_speed_step)
+    else if (wheel->pre_r < -right_speed_step)
       wheel->cur_r = wheel->pre_r + right_speed_step;
     else
       wheel->cur_r = 0;
+
+
+
   }
 
   if (wheel->cur_l > wheel->max_linear_speed)
@@ -184,10 +200,11 @@ void wheelCalculateSpeed(WheelSpeed* wheel)
   wheel->cur_l = linearSpeed + angularSpeed;
   wheel->cur_r = linearSpeed - angularSpeed;
 
-  // direct step to 0 if speed is small enough
-  if(fabs(wheel->cur_l) < 50)
+  // direct step to 0 if speed is small enough50
+  // direct step to 0 if speed is small enough50
+  if(fabs(wheel->cur_l) < 25)
     wheel->cur_l = 0;
-  if(fabs(  wheel->cur_r) < 50)
+  if(fabs(  wheel->cur_r) < 25)
     wheel->cur_r = 0;
 }
 
