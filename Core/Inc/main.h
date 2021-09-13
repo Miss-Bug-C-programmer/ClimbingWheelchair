@@ -46,7 +46,9 @@ typedef enum{
 	NORMAL = 0,
 	CLIMB_UP,
 	CLIMB_DOWN,
-	RETRACTION
+	RETRACTION,
+	LANDING,
+	EMPTY
 }Operation_Mode;
 /* USER CODE END EC */
 
@@ -102,6 +104,8 @@ void Error_Handler(void);
 #define ClimbM_IO_BRK2_GPIO_Port GPIOE
 #define ClimbM_IO_ALM2_Pin GPIO_PIN_8
 #define ClimbM_IO_ALM2_GPIO_Port GPIOE
+#define Climb_TIM1_CH2_Pin GPIO_PIN_11
+#define Climb_TIM1_CH2_GPIO_Port GPIOE
 #define ClimbM_IO_FR1_Pin GPIO_PIN_12
 #define ClimbM_IO_FR1_GPIO_Port GPIOE
 #define ClimbM_IO_EN1_Pin GPIO_PIN_13
@@ -112,8 +116,6 @@ void Error_Handler(void);
 #define ClimbM_IO_ALM1_GPIO_Port GPIOE
 #define ClimbSpeed_TIM2_CH3_Pin GPIO_PIN_10
 #define ClimbSpeed_TIM2_CH3_GPIO_Port GPIOB
-#define ClimbSpeed_TIM2_CH4_Pin GPIO_PIN_11
-#define ClimbSpeed_TIM2_CH4_GPIO_Port GPIOB
 #define CUI_SPI2_CLK_Pin GPIO_PIN_13
 #define CUI_SPI2_CLK_GPIO_Port GPIOB
 #define CUI_SPI2_MISO_Pin GPIO_PIN_14
@@ -142,8 +144,6 @@ void Error_Handler(void);
 #define Wheel_TIM3_CH2_GPIO_Port GPIOC
 #define Climb_TIM8_CH4_Pin GPIO_PIN_9
 #define Climb_TIM8_CH4_GPIO_Port GPIOC
-#define Climb_TIM1_CH2_Pin GPIO_PIN_9
-#define Climb_TIM1_CH2_GPIO_Port GPIOA
 #define Brake_Wheel_Pin GPIO_PIN_3
 #define Brake_Wheel_GPIO_Port GPIOD
 #define LED1_Pin GPIO_PIN_3

@@ -126,7 +126,7 @@ MPU6050_t MPU6050;
 double initial_angle = 0;
 double exp_angle_filter = 0.8;
 bool climb_first_iteration = true;
-
+bool button_prev_state = false;
 //-----------------------------------------------------------------------------------------------
 //Climbing Position Control
 //-----------------------------------------------------------------------------------------------
@@ -194,46 +194,45 @@ bool in_climb_process(int front_enc, int back_enc);
 /* USER CODE END 0 */
 
 /**
- * @brief  The application entry point.
- * @retval int
- */
+  * @brief  The application entry point.
+  * @retval int
+  */
 int main(void)
 {
-	/* USER CODE BEGIN 1 */
+  /* USER CODE BEGIN 1 */
 
-	/* USER CODE END 1 */
+  /* USER CODE END 1 */
 
-	/* MCU Configuration--------------------------------------------------------*/
+  /* MCU Configuration--------------------------------------------------------*/
 
-	/* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+  HAL_Init();
 
-	HAL_Init();
+  /* USER CODE BEGIN Init */
 
-	/* USER CODE BEGIN Init */
+  /* USER CODE END Init */
 
-	/* USER CODE END Init */
+  /* Configure the system clock */
+  SystemClock_Config();
 
-	/* Configure the system clock */
-	SystemClock_Config();
-
-	/* USER CODE BEGIN SysInit */
+  /* USER CODE BEGIN SysInit */
 	HAL_SYSTICK_Config(HAL_RCC_GetHCLKFreq() / FREQUENCY);
 	HAL_SYSTICK_CLKSourceConfig(SYSTICK_CLKSOURCE_HCLK);
 	HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
-	/* USER CODE END SysInit */
+  /* USER CODE END SysInit */
 
-	/* Initialize all configured peripherals */
-	MX_GPIO_Init();
-	MX_DMA_Init();
-	MX_I2C1_Init();
-	MX_TIM1_Init();
-	MX_TIM2_Init();
-	MX_USART3_UART_Init();
-	MX_TIM3_Init();
-	MX_TIM8_Init();
-	MX_CAN1_Init();
-	MX_SPI1_Init();
-	/* USER CODE BEGIN 2 */
+  /* Initialize all configured peripherals */
+  MX_GPIO_Init();
+  MX_DMA_Init();
+  MX_I2C1_Init();
+  MX_TIM1_Init();
+  MX_TIM2_Init();
+  MX_USART3_UART_Init();
+  MX_TIM3_Init();
+  MX_TIM8_Init();
+  MX_CAN1_Init();
+  MX_SPI1_Init();
+  /* USER CODE BEGIN 2 */
 	//Initialize hardware communication
 	joystick_Init();
 	ADC_Init();
@@ -272,21 +271,21 @@ int main(void)
 	frontClimb_pid = pid_create(&frontClimb_ctrl, &frontClimb_input,
 			&frontClimb_output, &frontClimb_setpoint, frontClimb_kp,
 			frontClimb_ki, frontClimb_kd);
-	pid_limits(frontClimb_pid, -50, 50);
+	pid_limits(frontClimb_pid, -30, 30);
 	pid_sample(frontClimb_pid, 1);
 	pid_auto(frontClimb_pid);
 
 	backClimb_pid = pid_create(&backClimb_ctrl, &backClimb_input,
 			&backClimb_output, &backClimb_setpoint, backClimb_kp, backClimb_ki,
 			backClimb_kd);
-	pid_limits(backClimb_pid, -50, 50);
+	pid_limits(backClimb_pid, -30, 30);
 	pid_sample(backClimb_pid, 1);
 	pid_auto(backClimb_pid);
 
-	/* USER CODE END 2 */
+  /* USER CODE END 2 */
 
-	/* Infinite loop */
-	/* USER CODE BEGIN WHILE */
+  /* Infinite loop */
+  /* USER CODE BEGIN WHILE */
 	uint32_t prev_time = HAL_GetTick();
 	ENCODER_Get_Angle(&encoderBack);
 	ENCODER_Get_Angle(&encoderFront);
@@ -369,23 +368,26 @@ int main(void)
 			//---------------------------------------------------------------------------------------------------
 			//3-button control climbing mechanism
 //			---------------------------------------------------------------------------------------------------
-//			if (button1.state == GPIO_PIN_SET
-//					&& button3.state == GPIO_PIN_RESET)
-//				speed[FRONT_INDEX] = 5;
-//			else if (button1.state == GPIO_PIN_SET
-//					&& button3.state == GPIO_PIN_SET)
-//				speed[FRONT_INDEX] = -5;
-//			else if (button1.state == GPIO_PIN_RESET)
-//				speed[FRONT_INDEX] = 0;
-//
-//			if (button2.state == GPIO_PIN_SET
-//					&& button3.state == GPIO_PIN_RESET)
-//				speed[BACK_INDEX] = 5;
-//			else if (button2.state == GPIO_PIN_SET
-//					&& button3.state == GPIO_PIN_SET)
-//				speed[BACK_INDEX] = -5;
-//			else if (button2.state == GPIO_PIN_RESET)
-//				speed[BACK_INDEX] = 0;
+			if (button1.state == GPIO_PIN_SET
+					&& button3.state == GPIO_PIN_RESET)
+				speed[FRONT_INDEX] = 30;
+			else if (button1.state == GPIO_PIN_SET
+					&& button3.state == GPIO_PIN_SET)
+				speed[FRONT_INDEX] = -10;
+			else if (button1.state == GPIO_PIN_RESET)
+				speed[FRONT_INDEX] = 0;
+
+			if (button2.state == GPIO_PIN_SET
+					&& button3.state == GPIO_PIN_RESET)
+				speed[BACK_INDEX] = 30;
+			else if (button2.state == GPIO_PIN_SET
+					&& button3.state == GPIO_PIN_SET)
+				speed[BACK_INDEX] = -10;
+			else if (button2.state == GPIO_PIN_RESET)
+				speed[BACK_INDEX] = 0;
+
+			runMotor(&backMotor, speed[BACK_INDEX]);
+			runMotor(&rearMotor, speed[FRONT_INDEX]);
 
 			//---------------------------------------------------------------------------------------------------
 			//Testing Climbing Position Control
@@ -437,217 +439,243 @@ int main(void)
 			//3. Climbing wheel retraction
 			//---------------------------------------------------------------------------------------------------
 			//when button3 is pressed, Extend climbing wheel until both wheel touches the ground
-			if (button3.state == 1 && front_touchdown == false
-					&& back_touchdown == false && lifting_mode == NORMAL)
-			{
-				//Stop the base wheel completely
-				baseWheelSpeed.cur_r = 0;
-				baseWheelSpeed.cur_l = 0;
-				baseMotorCommand();
-
-				//Disengage the motor brake
-				emBrakeMotor(1);
-
-				//Start landing process
-				while (front_touchdown == false || back_touchdown == false)
-				{
-					if (GPIO_Digital_Filtered_Input(&rearLS1, 5)
-							|| GPIO_Digital_Filtered_Input(&rearLS2, 5))
-						front_touchdown = 1;
-					if (GPIO_Digital_Filtered_Input(&backLS1, 5)
-							|| GPIO_Digital_Filtered_Input(&backLS2, 5))
-						back_touchdown = 1;
-
-					//if front touch before back, climbing up process
-					if (back_touchdown == 0 && front_touchdown == 1)
-						lifting_mode = CLIMB_UP;
-					//if back touch before front, climbing down process
-					else if (back_touchdown == 1 && front_touchdown == 0)
-						lifting_mode = CLIMB_DOWN;
-
-					initial_angle = exp_angle_filter * MPU6050.KalmanAngleX
-							+ (1 - exp_angle_filter) * initial_angle;
-
-					if (back_touchdown == false)
-						runMotor(&backMotor, 5);
-					else
-						runMotor(&backMotor, 0);
-
-					if (front_touchdown == false)
-						runMotor(&rearMotor, 5);
-					else
-						runMotor(&rearMotor, 0);
-				}
-
-				HAL_Delay(500);
-				continue; //to refresh the loop and get the latest encoder reading
-			}
-			//Normal wheelchair mode, basic joystick control mode
-			if (lifting_mode == NORMAL)
-			{
-				HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
-				HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);
-				wheel_Control(&baseWheelSpeed);
-				baseMotorCommand();
-				front_touchdown = false;
-				back_touchdown = false;
-				climb_first_iteration = true;
-			}
-			//Climbing up process
-			if (lifting_mode == CLIMB_UP)
-			{
-				HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
-				if (climb_first_iteration)
-				{
-					//If curb_height is positive, should be climbing up process and vice versa
-					curb_height = CLIMBING_LEG_LENGTH
-							* cos(TO_RAD(encoderFront.angleDeg)) + BASE_HEIGHT
-							- FRONT_CLIMB_WHEEL_DIAMETER / 2.0;
-					curb_height += 0.0205; //Small error correction 10%
-
-					//First determine whether is the height climb-able
-					back_lifting_height = BACK_BASE_HEIGHT + curb_height
-							- HUB_DIAMETER / 2;
-					back_lifting_angle =
-					TO_DEG(
-							(float )acos(
-									-back_lifting_height
-									/ CLIMBING_LEG_LENGTH)) - 30.0; //30.0 is the bending angle of the extender(originally 36.6).
-					back_encoder_input = (back_lifting_angle / 360.0)
-							* (4096 * BACK_GEAR_RATIO);
-
-					//3 different scenerio to abort the climbing up task
-					//1. The angle calculated is not feasible
-					//2. The leg rotate more than it supposed to
-					//3. The curb height is too low where climbing up is unnecessary
-					if (isnan(back_lifting_angle)
-							|| back_encoder_input >= MAX_BACK_ALLOWABLE_ENC
-								|| curb_height <= 0.05 )
-					{
-						lifting_mode = NORMAL;
-						continue;
-					}
-					climb_first_iteration = false;
-				}
-
-				if (!in_climb_process(MAX_FRONT_CLIMBING_ENC, back_encoder_input) && !(climbingForward(forward_distance)))
-				{
-					lifting_mode = RETRACTION;
-					HAL_Delay(500);
-				}
-			}
-
-			else if (lifting_mode == CLIMB_DOWN)
-			{
-				//Climbing down process
-				HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_SET);
-				if (climb_first_iteration)
-				{
-					front_climbDown_enc = encoderFront.encoder_pos
-							+ 3.0 / 360.0 * 4096 * FRONT_GEAR_RATIO;
-
-					//First determine whether is the height climb-able
-					if (front_climbDown_enc > MAX_FRONT_ALLOWABLE_ENC)
-					{
-						lifting_mode = NORMAL;
-						continue;
-					}
-					climb_first_iteration = false;
-				}
-
-				if (!in_climb_process(front_climbDown_enc, MAX_BACK_CLIMBING_ENC) && !(climbingForward(forward_distance)))
-				{
-					lifting_mode = RETRACTION;
-					HAL_Delay(500);
-				}
-			}
-
-			if (lifting_mode == RETRACTION)
-			{
-				//retraction process
-				goto_pos(MIN_BACK_ALLOWABLE_ENC + 300, backClimb_pid);
-				goto_pos(MIN_FRONT_ALLOWABLE_ENC + 300, frontClimb_pid);
-				if (fabs(speed[FRONT_INDEX] < 4) && fabs(speed[BACK_INDEX]) < 4)
-				{
-					lifting_mode = NORMAL;
-				}
-			}
-
-			if (fabs(speed[FRONT_INDEX]) < 4)
-				speed[FRONT_INDEX] = 0;
-			if (fabs(speed[BACK_INDEX]) < 4)
-				speed[BACK_INDEX] = 0;
-
-			runMotor(&rearMotor, speed[FRONT_INDEX]);
-			runMotor(&backMotor, speed[BACK_INDEX]);
-
-			if (speed[FRONT_INDEX] == 0 && speed[BACK_INDEX] == 0)
-				emBrakeMotor(0);
-			else
-				emBrakeMotor(1);
+//			if ((button3.state == 1 || button_prev_state == 1) && climb_first_iteration == true){
+//				button_prev_state = 1;
+//				if (abs(encoderFront.signed_encoder_pos) >= 50 || abs(encoderBack.signed_encoder_pos) >= 50){
+//					goto_pos(0, frontClimb_pid);
+//					goto_pos(0, backClimb_pid);
+//					lifting_mode = EMPTY;
+//				}
+//				else {
+//					runMotor(&rearMotor, 0);
+//					runMotor(&backMotor, 0);
+//					lifting_mode = LANDING;
+//					button_prev_state = 0;
+//					HAL_Delay(500);
+//
+//				}
+//			}
+//
+//
+//			if (front_touchdown == false
+//					&& back_touchdown == false && lifting_mode == LANDING)
+//			{
+//				//Stop the base wheel completely
+//				baseWheelSpeed.cur_r = 0;
+//				baseWheelSpeed.cur_l = 0;
+//				baseMotorCommand();
+//
+//				//Disengage the motor brake
+//				emBrakeMotor(1);
+//
+//
+//				//Start landing process
+//				while (front_touchdown == false || back_touchdown == false)
+//				{
+//					if (GPIO_Digital_Filtered_Input(&rearLS1, 5)
+//							&& GPIO_Digital_Filtered_Input(&rearLS2, 5))
+//						front_touchdown = 1;
+//					if (GPIO_Digital_Filtered_Input(&backLS1, 5)
+//							&& GPIO_Digital_Filtered_Input(&backLS2, 5))
+//						back_touchdown = 1;
+//
+//					//if front touch before back, climbing up process
+//					if (back_touchdown == 0 || front_touchdown == 1)
+//						lifting_mode = CLIMB_UP;
+//					//if back touch before front, climbing down process
+//					else if (back_touchdown == 1 || front_touchdown == 0)
+//						lifting_mode = CLIMB_DOWN;
+//
+//					initial_angle = exp_angle_filter * MPU6050.KalmanAngleX
+//							+ (1 - exp_angle_filter) * initial_angle;
+//
+//					if (back_touchdown == false)
+//						runMotor(&backMotor, 5);
+//					else
+//						runMotor(&backMotor, 0);
+//
+//					if (front_touchdown == false)
+//						runMotor(&rearMotor, 5);
+//					else
+//						runMotor(&rearMotor, 0);
+//				}
+//
+//				HAL_Delay(500);
+//				continue; //to refresh the loop and get the latest encoder reading
+//			}
+//			//Normal wheelchair mode, basic joystick control mode
+//			if (lifting_mode == NORMAL)
+//			{
+//				HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
+//				HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);
+//				wheel_Control(&baseWheelSpeed);
+////				baseMotorCommand();
+//				front_touchdown = false;
+//				back_touchdown = false;
+//				climb_first_iteration = true;
+//				speed[FRONT_INDEX] = 0;
+//				speed[BACK_INDEX] = 0;
+//
+//			}
+//			//Climbing up process
+//			if (lifting_mode == CLIMB_UP)
+//			{
+//				HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
+//				if (climb_first_iteration)
+//				{
+//					//If curb_height is positive, should be climbing up process and vice versa
+//					curb_height = CLIMBING_LEG_LENGTH
+//							* cos(TO_RAD(encoderFront.angleDeg)) + BASE_HEIGHT
+//							- FRONT_CLIMB_WHEEL_DIAMETER / 2.0;
+//					curb_height += 0.025; //Small error correction 10%
+//
+//					//First determine whether is the height climb-able
+//					back_lifting_height = BACK_BASE_HEIGHT + curb_height
+//							- HUB_DIAMETER / 2;
+//					back_lifting_angle =
+//					TO_DEG(
+//							(float )acos(
+//									-back_lifting_height
+//									/ CLIMBING_LEG_LENGTH)) - 30.0; //30.0 is the bending angle of the extender(originally 36.6).
+//					back_encoder_input = (back_lifting_angle / 360.0)
+//							* (4096 * BACK_GEAR_RATIO);
+//
+//					//3 different scenerio to abort the climbing up task
+//					//1. The angle calculated is not feasible
+//					//2. The leg rotate more than it supposed to
+//					//3. The curb height is too low where climbing up is unnecessary
+//					if (isnan(back_lifting_angle)
+//							|| back_encoder_input >= MAX_BACK_ALLOWABLE_ENC
+//								|| curb_height <= 0.05 )
+//					{
+//						lifting_mode = RETRACTION;
+//						continue;
+//					}
+//					climb_first_iteration = false;
+//				}
+//
+//				if (!in_climb_process(MAX_FRONT_CLIMBING_ENC, back_encoder_input) && !(climbingForward(forward_distance)))
+//				{
+//					lifting_mode = RETRACTION;
+//					HAL_Delay(500);
+//				}
+//				speed[FRONT_INDEX] = 0;
+//				speed[BACK_INDEX] = 0;
+//			}
+//
+//			else if (lifting_mode == CLIMB_DOWN)
+//			{
+//				//Climbing down process
+//				HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_SET);
+//				if (climb_first_iteration)
+//				{
+//					front_climbDown_enc = encoderFront.encoder_pos
+//							+ 3.0 / 360.0 * 4096 * FRONT_GEAR_RATIO;
+//
+//					//First determine whether is the height climb-able
+//					if (front_climbDown_enc > MAX_FRONT_ALLOWABLE_ENC)
+//					{
+//						lifting_mode = RETRACTION;
+//						continue;
+//					}
+//					climb_first_iteration = false;
+//				}
+//
+//				if (!in_climb_process(front_climbDown_enc, MAX_BACK_CLIMBING_ENC) && !(climbingForward(forward_distance)))
+//				{
+//					lifting_mode = RETRACTION;
+//					HAL_Delay(500);
+//				}
+//				speed[FRONT_INDEX] = 0;
+//				speed[BACK_INDEX] = 0;
+//			}
+//
+//			if (lifting_mode == RETRACTION)
+//			{
+//
+//				//retraction process
+//				if(abs(encoderBack.encoder_pos - (MIN_BACK_ALLOWABLE_ENC + 300)) > 50
+//						|| abs(encoderFront.encoder_pos - (MIN_FRONT_ALLOWABLE_ENC + 300)) > 50){
+//					goto_pos(MIN_BACK_ALLOWABLE_ENC + 300, backClimb_pid);
+//					goto_pos(MIN_FRONT_ALLOWABLE_ENC + 300, frontClimb_pid);
+//				}
+//				else
+//					lifting_mode = NORMAL;
+//			}
+//
+//			if (fabs(speed[FRONT_INDEX]) < 4)
+//				speed[FRONT_INDEX] = 0;
+//			if (fabs(speed[BACK_INDEX]) < 4)
+//				speed[BACK_INDEX] = 0;
+//
+//			runMotor(&rearMotor, speed[FRONT_INDEX]);
+//			runMotor(&backMotor, speed[BACK_INDEX]);
+//
+//			if (speed[FRONT_INDEX] == 0 && speed[BACK_INDEX] == 0)
+//				emBrakeMotor(0);
+//			else
+//				emBrakeMotor(1);
 
 			prev_time = HAL_GetTick();
 
 		}
 		//	HAL_Delay(10);
 
-		/* USER CODE END WHILE */
+    /* USER CODE END WHILE */
 
-		/* USER CODE BEGIN 3 */
+    /* USER CODE BEGIN 3 */
 
 	}
-	/* USER CODE END 3 */
+  /* USER CODE END 3 */
 }
 
 /**
- * @brief System Clock Configuration
- * @retval None
- */
+  * @brief System Clock Configuration
+  * @retval None
+  */
 void SystemClock_Config(void)
 {
-	RCC_OscInitTypeDef RCC_OscInitStruct =
-	{ 0 };
-	RCC_ClkInitTypeDef RCC_ClkInitStruct =
-	{ 0 };
+  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
 
-	/** Configure the main internal regulator output voltage
-	 */
-	__HAL_RCC_PWR_CLK_ENABLE();
-	__HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
-	/** Initializes the RCC Oscillators according to the specified parameters
-	 * in the RCC_OscInitTypeDef structure.
-	 */
-	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-	RCC_OscInitStruct.HSEState = RCC_HSE_ON;
-	RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-	RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-	RCC_OscInitStruct.PLL.PLLM = 8;
-	RCC_OscInitStruct.PLL.PLLN = 180;
-	RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
-	RCC_OscInitStruct.PLL.PLLQ = 4;
-	if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
-	{
-		Error_Handler();
-	}
-	/** Activate the Over-Drive mode
-	 */
-	if (HAL_PWREx_EnableOverDrive() != HAL_OK)
-	{
-		Error_Handler();
-	}
-	/** Initializes the CPU, AHB and APB buses clocks
-	 */
-	RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK
-			| RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
-	RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
-	RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-	RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
-	RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
+  /** Configure the main internal regulator output voltage
+  */
+  __HAL_RCC_PWR_CLK_ENABLE();
+  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
+  /** Initializes the RCC Oscillators according to the specified parameters
+  * in the RCC_OscInitTypeDef structure.
+  */
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+  RCC_OscInitStruct.PLL.PLLM = 8;
+  RCC_OscInitStruct.PLL.PLLN = 180;
+  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
+  RCC_OscInitStruct.PLL.PLLQ = 4;
+  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Activate the Over-Drive mode
+  */
+  if (HAL_PWREx_EnableOverDrive() != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Initializes the CPU, AHB and APB buses clocks
+  */
+  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
+                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
+  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
 
-	if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5) != HAL_OK)
-	{
-		Error_Handler();
-	}
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5) != HAL_OK)
+  {
+    Error_Handler();
+  }
 }
 
 /* USER CODE BEGIN 4 */
@@ -724,6 +752,8 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 					/ (4096 * BACK_GEAR_RATIO) * 360 + 36.587;
 			if (encoderBack.angleDeg > 360)
 				encoderBack.angleDeg -= 360;
+			if (encoderBack.encoder_pos >= MAX_BACK_ALLOWABLE_ENC)
+				encoderBack.signed_encoder_pos = encoderBack.encoder_pos - 4096 * BACK_GEAR_RATIO;
 		}
 		if (incoming[1] == ENC_ADDR_RIGHT)
 		{
@@ -744,6 +774,8 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 				encoderFront.angleDeg = (float) encoderFront.encoder_pos
 						/ (4096 * FRONT_GEAR_RATIO) * 360 + 36.587 - 360;
 			}
+			if (encoderFront.encoder_pos >= MAX_FRONT_ALLOWABLE_ENC)
+				encoderFront.signed_encoder_pos =  encoderFront.encoder_pos - 4096 * FRONT_GEAR_RATIO;
 		}
 	}
 }
@@ -909,31 +941,31 @@ bool in_climb_process(int front_enc, int back_enc){
 /* USER CODE END 4 */
 
 /**
- * @brief  This function is executed in case of error occurrence.
- * @retval None
- */
+  * @brief  This function is executed in case of error occurrence.
+  * @retval None
+  */
 void Error_Handler(void)
 {
-	/* USER CODE BEGIN Error_Handler_Debug */
+  /* USER CODE BEGIN Error_Handler_Debug */
 	/* User can add his own implementation to report the HAL error return state */
 
-	/* USER CODE END Error_Handler_Debug */
+  /* USER CODE END Error_Handler_Debug */
 }
 
 #ifdef  USE_FULL_ASSERT
 /**
- * @brief  Reports the name of the source file and the source line number
- *         where the assert_param error has occurred.
- * @param  file: pointer to the source file name
- * @param  line: assert_param error line source number
- * @retval None
- */
+  * @brief  Reports the name of the source file and the source line number
+  *         where the assert_param error has occurred.
+  * @param  file: pointer to the source file name
+  * @param  line: assert_param error line source number
+  * @retval None
+  */
 void assert_failed(uint8_t *file, uint32_t line)
 {
-	/* USER CODE BEGIN 6 */
+  /* USER CODE BEGIN 6 */
 	/* User can add his own implementation to report the file name and line number,
 	 tex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
-	/* USER CODE END 6 */
+  /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
 
