@@ -28,6 +28,7 @@ typedef struct
   union UInt32UInt8 angle32Bit;
   float angleDeg;
   uint32_t encoder_pos;
+  int signed_encoder_pos;
   uint8_t sendData[4];
   uint8_t rawRead[8];
 	
