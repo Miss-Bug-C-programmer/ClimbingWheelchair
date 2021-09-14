@@ -42,7 +42,7 @@ void send_HubMotor(float m1_ang_speed, float m2_ang_speed){
 
 	//Set maximum torque
 	//Value: 0 - 450 (300 by default)
-	uint16_t max_torque = 300;
+	uint16_t max_torque = 350;
 	uint8_t msb_max_torque = (uint8_t)((max_torque & 0xFF00) >> 8);
 	uint8_t lsb_max_torque = (uint8_t)(max_torque & 0x00FF);
 	send_buf[8] = lsb_max_torque;
