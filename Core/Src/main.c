@@ -163,7 +163,7 @@ int back_encoder_input = 0;
 uint8_t receive_buf[15];
 Encoder_Feedback hub_encoder_feedback;
 
-float climbForward_speed = 0; //rad/s
+float climbForward_speed = 0; //rad/s`
 float forward_distance = BASE_LENGTH + 0.05; // (in meter) distance to travel during climbing process by hub
 bool is_lifting = false;
 //-----------------------------------------------------------------------------------------------
@@ -242,12 +242,12 @@ int main(void)
 	ENCODER_Init();
 //	  DWT_Init();
 
-	uint32_t state_count = HAL_GetTick();
-	while (MPU6050_Init(&hi2c1) == 1)
-	{
-		if (HAL_GetTick() - state_count > 5000)
-			Error_Handler();
-	}
+//	uint32_t state_count = HAL_GetTick();
+//	while (MPU6050_Init(&hi2c1) == 1)
+//	{
+//		if (HAL_GetTick() - state_count > 5000)
+//			Error_Handler();
+//	}
 
 	//Start base wheel PWM pin
 	wheelSpeedControl_Init(&baseWheelSpeed, base_linSpeedLevel[base_speedLevel],
@@ -291,9 +291,9 @@ int main(void)
 	uint32_t prev_time = HAL_GetTick();
 	ENCODER_Get_Angle(&encoderBack);
 	ENCODER_Get_Angle(&encoderFront);
-	while (state_count++ < 1000)
-		MPU6050_Read_All(&hi2c1, &MPU6050);
-	initial_angle = MPU6050.KalmanAngleX;
+//	while (state_count++ < 1000)
+//		MPU6050_Read_All(&hi2c1, &MPU6050);
+//	initial_angle = MPU6050.KalmanAngleX;
 	state_count = 0;
 	emBrakeMotor(1);
 	//Reset encoder position
@@ -358,7 +358,7 @@ int main(void)
 			ENCODER_Read(&encoderFront);
 
 			//Get kamlan filtered angle from MPU6050
-			MPU6050_Read_All(&hi2c1, &MPU6050);
+//			MPU6050_Read_All(&hi2c1, &MPU6050);
 			GPIO_Digital_Filtered_Input(&button1, 30);
 			GPIO_Digital_Filtered_Input(&button2, 30);
 			GPIO_Digital_Filtered_Input(&button3, 30);
@@ -389,6 +389,10 @@ int main(void)
 //			else if (button2.state == GPIO_PIN_RESET)
 //				speed[BACK_INDEX] = 0;
 //
+//			front_climbDown_enc = encoderFront.encoder_pos
+//										+ 3.0 / 360.0 * 4096 * FRONT_GEAR_RATIO;
+
+
 //			runMotor(&backMotor, speed[BACK_INDEX]);
 //			runMotor(&rearMotor, speed[FRONT_INDEX]);
 
@@ -406,7 +410,7 @@ int main(void)
 //				goto_pos(0, backClimb_pid);
 ////				goto_pos(0, frontClimb_pid);
 //			}
-
+//
 //			if (state == NORMAL_DEBUG) {
 //				if (button1.state == GPIO_PIN_SET
 //						&& button3.state == GPIO_PIN_RESET)
@@ -420,7 +424,7 @@ int main(void)
 ////				curb_height -= 0.01;
 //			}
 //			runMotor(&rearMotor, speed[FRONT_INDEX]);
-
+//
 //			if (state == NORMAL_DEBUG) {
 //				if (button1.state == GPIO_PIN_SET
 //						&& button3.state == GPIO_PIN_RESET)
@@ -433,13 +437,13 @@ int main(void)
 //			}
 //			runMotor(&backMotor, speed[BACK_INDEX]);
 
-			//---------------------------------------------------------------------------------------------------
-			//Final Code
-			//1. Climbing wheel extension
-			//2. Wheelchair lifting/dropping
-			//3. Climbing wheel retraction
-			//---------------------------------------------------------------------------------------------------
-			//when button3 is pressed, Extend climbing wheel until both wheel touches the ground
+//			---------------------------------------------------------------------------------------------------
+//			Final Code
+//			1. Climbing wheel extension
+//			2. Wheelchair lifting/dropping
+//			3. Climbing wheel retraction
+//			---------------------------------------------------------------------------------------------------
+//			when button3 is pressed, Extend climbing wheel until both wheel touches the ground
 			if ((button3.state == 1 || button_prev_state == 1) && climb_first_iteration == true){
 				button_prev_state = 1;
 				if (abs(encoderFront.signed_encoder_pos) >= 50 || abs(encoderBack.signed_encoder_pos) >= 50){
@@ -472,10 +476,10 @@ int main(void)
 				while (front_touchdown == false || back_touchdown == false)
 				{
 					if (GPIO_Digital_Filtered_Input(&rearLS1, 5)
-							&& GPIO_Digital_Filtered_Input(&rearLS2, 5))
+							|| GPIO_Digital_Filtered_Input(&rearLS2, 5))
 						front_touchdown = 1;
 					if (GPIO_Digital_Filtered_Input(&backLS1, 5)
-							&& GPIO_Digital_Filtered_Input(&backLS2, 5))
+							|| GPIO_Digital_Filtered_Input(&backLS2, 5))
 						back_touchdown = 1;
 
 					//if front touch before back, climbing up process
@@ -485,8 +489,10 @@ int main(void)
 					else if (back_touchdown == 1 && front_touchdown == 0 && lifting_mode == LANDING)
 						lifting_mode = CLIMB_DOWN;
 
-					initial_angle = exp_angle_filter * MPU6050.KalmanAngleX
-							+ (1 - exp_angle_filter) * initial_angle;
+//					initial_angle = exp_angle_filter * MPU6050.KalmanAngleXf
+
+					ENCODER_Read(&encoderBack);
+					ENCODER_Read(&encoderFront);
 
 					if (back_touchdown == false)
 						runMotor(&backMotor, 5);
@@ -518,7 +524,6 @@ int main(void)
 				climb_first_iteration = true;
 				speed[FRONT_INDEX] = 0;
 				speed[BACK_INDEX] = 0;
-
 			}
 			//Climbing up process
 			if (lifting_mode == CLIMB_UP)
@@ -547,14 +552,17 @@ int main(void)
 					//1. The angle calculated is not feasible
 					//2. The leg rotate more than it supposed to
 					//3. The curb height is too low where climbing up is unnecessary
-					if (isnan(back_lifting_angle)
-							|| back_encoder_input >= MAX_BACK_ALLOWABLE_ENC
-								|| curb_height <= 0.05 )
-					{
-						lifting_mode = RETRACTION;
-						continue;
-					}
+//					if (isnan(back_lifting_angle)
+//							|| back_encoder_input >= MAX_BACK_ALLOWABLE_ENC
+//								|| curb_height <= 0.05 )
+//					{
+//						lifting_mode = RETRACTION;
+//						continue;
+//					}
+					speed[BACK_INDEX] = 0;
+					speed[FRONT_INDEX] = 0;
 					climb_first_iteration = false;
+
 				}
 				//Mathematical Model
 //				if (!in_climb_process(MAX_FRONT_CLIMBING_ENC, back_encoder_input) && !(climbingForward(forward_distance+0.02)))
@@ -563,7 +571,7 @@ int main(void)
 //					HAL_Delay(500);
 //				}
 				//20cm Height of curb
-				if(!in_climb_process(MAX_FRONT_CLIMBING_ENC, 2730) && !(climbingForward(forward_distance)))
+				if(!in_climb_process(MAX_FRONT_CLIMBING_ENC, 2700) && !(climbingForward(forward_distance)))
 				{
 					lifting_mode = RETRACTION;
 					HAL_Delay(500);
@@ -581,12 +589,15 @@ int main(void)
 							+ 3.0 / 360.0 * 4096 * FRONT_GEAR_RATIO;
 
 					//First determine whether is the height climb-able
-					if (front_climbDown_enc > MAX_FRONT_ALLOWABLE_ENC)
-					{
-						lifting_mode = RETRACTION;
-						continue;
-					}
+//					if (front_climbDown_enc > MAX_FRONT_ALLOWABLE_ENC )
+//					{
+//						lifting_mode = RETRACTION;
+//						continue;
+//					}
 					climb_first_iteration = false;
+
+					speed[BACK_INDEX] = 0;
+					speed[FRONT_INDEX] = 0;
 				}
 
 				if (!in_climb_process(front_climbDown_enc, MAX_BACK_CLIMBING_ENC) && !(climbingForward(forward_distance)))
@@ -621,6 +632,7 @@ int main(void)
 
 			if(encoderBack.encoder_pos > MAX_BACK_ALLOWABLE_ENC && encoderBack.encoder_pos < MIN_BACK_ALLOWABLE_ENC)
 				speed[BACK_INDEX] = 0;
+
 
 			runMotor(&rearMotor, speed[FRONT_INDEX]);
 			runMotor(&backMotor, speed[BACK_INDEX]);
