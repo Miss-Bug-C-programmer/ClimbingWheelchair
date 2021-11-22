@@ -76,6 +76,7 @@ void emBrakeMotor(uint8_t state){
 
 void brakeMotor(Motor_TypeDef* motor, uint8_t state){
 	HAL_GPIO_WritePin(motor->BRK_port, motor->BRK_pin, state);
+	HAL_TIM_PWM_Stop(motor->outputPWM, motor->PWM_channel);
 }
 
 void setMotorDir(Motor_TypeDef* motor, uint8_t dir){
