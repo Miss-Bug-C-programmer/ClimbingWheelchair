@@ -48,29 +48,31 @@ void MX_CAN1_Init(void)
   }
 
   /* USER CODE BEGIN CAN1_Init 2 */
-  	CAN_FilterTypeDef canfil_1;
-  	canfil_1.FilterBank = 0;
-  	canfil_1.FilterMode = CAN_FILTERMODE_IDMASK;
-  	canfil_1.FilterScale = CAN_FILTERSCALE_32BIT;
-  	canfil_1.FilterIdHigh = 0x0000;
-  	canfil_1.FilterIdLow = 0x0000;
-  	canfil_1.FilterMaskIdHigh = 0x0000;
-  	canfil_1.FilterMaskIdLow = 0x0000;
-  	canfil_1.FilterFIFOAssignment = CAN_RX_FIFO0;
-  	canfil_1.FilterActivation = CAN_FILTER_ENABLE;
-  	canfil_1.SlaveStartFilterBank = 0;
+   CAN_FilterTypeDef canfil_1;
+   canfil_1.FilterBank = 0;
+   canfil_1.FilterMode = CAN_FILTERMODE_IDMASK;
+   canfil_1.FilterScale = CAN_FILTERSCALE_32BIT;
+   canfil_1.FilterIdHigh = 0x0000;
+   canfil_1.FilterIdLow = 0x0000;
+   canfil_1.FilterMaskIdHigh = 0x0000;
+   canfil_1.FilterMaskIdLow = 0x0000;
+   canfil_1.FilterFIFOAssignment = CAN_RX_FIFO0;
+   canfil_1.FilterActivation = CAN_FILTER_ENABLE;
+   canfil_1.SlaveStartFilterBank = 0;
 
-  	if (HAL_CAN_ConfigFilter(&hcan1, &canfil_1) != HAL_OK)
-  		Error_Handler();
+   if (HAL_CAN_ConfigFilter(&hcan1, &canfil_1) != HAL_OK)
+		   Error_Handler();
 
-  	if (HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING))
-  		return Error_Handler();
+   if (HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING))
+		   return Error_Handler();
 
-  	if (HAL_CAN_Start(&hcan1))
-  		return Error_Handler();
+   if (HAL_CAN_Start(&hcan1))
+		   return Error_Handler();
 
 
     /* USER CODE END CAN1_Init 2 */
+
+
 
 }
 

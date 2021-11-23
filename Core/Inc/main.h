@@ -48,7 +48,8 @@ typedef enum{
 	CLIMB_DOWN,
 	RETRACTION,
 	LANDING,
-	EMPTY
+	EMPTY,
+	IDLE
 }Operation_Mode;
 /* USER CODE END EC */
 
