@@ -66,10 +66,10 @@ const float BACK_BASE_HEIGHT = 0.15;
 //ALLOWABLE is the maximum pos the climbing wheel can turn
 //FRONT_CLIMBING is the pos that the base above the climbing wheel w
 const uint32_t MAX_FRONT_ALLOWABLE_ENC = 3100;
-const uint32_t MIN_FRONT_ALLOWABLE_ENC = 6800; //6600
-const uint32_t MAX_FRONT_CLIMBING_ENC = 1800; //used for climbing up
-const uint32_t MAX_BACK_ALLOWABLE_ENC = 3200;
-const uint32_t MIN_BACK_ALLOWABLE_ENC = 7400;
+const uint32_t MIN_FRONT_ALLOWABLE_ENC = 6600; //6600
+const uint32_t MAX_FRONT_CLIMBING_ENC = 1950; //used for climbing up
+const uint32_t MAX_BACK_ALLOWABLE_ENC = 3000;
+const uint32_t MIN_BACK_ALLOWABLE_ENC = 7500;
 const uint32_t MAX_BACK_CLIMBING_ENC = 1750; //used when climbing down
 const uint32_t FRONT_FULL_ROTATION_ENC = 4096 * FRONT_GEAR_RATIO;
 const uint32_t BACK_FULL_ROTATION_ENC = 4096 * BACK_GEAR_RATIO;
@@ -145,14 +145,14 @@ struct pid_controller frontClimb_ctrl;
 PID_t frontClimb_pid;
 float frontClimb_input = 0, frontClimb_output = 0;
 float frontClimb_setpoint = 0;
-float frontClimb_kp = 0.05, frontClimb_ki = 0.003, frontClimb_kd = 0.00001;
+float frontClimb_kp = 0.1, frontClimb_ki = 0.003, frontClimb_kd = 0.00001;
 
 //Back Climbing Position Control
 struct pid_controller backClimb_ctrl;
 PID_t backClimb_pid;
 float backClimb_input = 0, backClimb_output = 0;
 float backClimb_setpoint = 0;
-float backClimb_kp = 0.03, backClimb_ki = 0.004, backClimb_kd = 0.00001;
+float backClimb_kp = 0.3, backClimb_ki = 0.004, backClimb_kd = 0.00001;
 
 float curb_height = 0; //store curb height
 int front_climbDown_enc = 0; //used when climbing down stair, to leave a gap between the front wheel and ground
@@ -167,7 +167,7 @@ uint8_t receive_buf[15];
 Encoder_Feedback hub_encoder_feedback;
 
 float climbForward_speed = 0; //rad/s`
-float forward_distance = BASE_LENGTH + 0.05; // (in meter) distance to travel during climbing process by hub
+float forward_distance = BASE_LENGTH + 0.03; // (in meter) distance to travel during climbing process by hub
 bool is_lifting = false;
 //-----------------------------------------------------------------------------------------------
 //Debug Test
@@ -189,6 +189,52 @@ void baseMotorCommand(void);
 bool climbingForward(float dist); //return true if in the process of moving forward
 bool goto_pos(int enc, PID_t pid_t); //return true if still in the process of reaching the position
 bool in_climb_process(int front_enc, int back_enc);
+
+#define TIMCLOCK   90000000
+#define PRESCALAR  90
+
+uint32_t IC_Val1 = 0;
+uint32_t IC_Val2 = 0;
+uint32_t Difference = 0;
+int Is_First_Captured = 0;
+
+/* Measure Frequency */
+float frequency = 0;
+
+void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
+{
+	if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_4)
+	{
+		if (Is_First_Captured==0) // if the first rising edge is not captured
+		{
+			IC_Val1 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_4); // read the first value
+			Is_First_Captured = 1;  // set the first captured as true
+		}
+
+		else   // If the first rising edge is captured, now we will capture the second edge
+		{
+			IC_Val2 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_4);  // read second value
+
+			if (IC_Val2 > IC_Val1)
+			{
+				Difference = IC_Val2-IC_Val1;
+			}
+
+			else if (IC_Val1 > IC_Val2)
+			{
+				Difference = (0xffff - IC_Val1) + IC_Val2;
+			}
+
+			float refClock = TIMCLOCK/(PRESCALAR);
+
+			frequency = refClock/Difference;
+
+			__HAL_TIM_SET_COUNTER(htim, 0);  // reset the counter
+			Is_First_Captured = 0; // set it back to false
+		}
+	}
+}
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -264,6 +310,7 @@ int main(void)
 	bd25l_Init(&backMotor);
 	runMotor(&rearMotor, 0);
 	runMotor(&backMotor, 0);
+	HAL_TIM_IC_Start_IT(&htim8, TIM_CHANNEL_4);
 	emBrakeMotor(0);
 //
 	//Initialize hub motor provided joystick control
@@ -274,14 +321,14 @@ int main(void)
 	frontClimb_pid = pid_create(&frontClimb_ctrl, &frontClimb_input,
 			&frontClimb_output, &frontClimb_setpoint, frontClimb_kp,
 			frontClimb_ki, frontClimb_kd);
-	pid_limits(frontClimb_pid, -20, 20);
+	pid_limits(frontClimb_pid, -80, 80);
 	pid_sample(frontClimb_pid, 1);
 	pid_auto(frontClimb_pid);
 
 	backClimb_pid = pid_create(&backClimb_ctrl, &backClimb_input,
 			&backClimb_output, &backClimb_setpoint, backClimb_kp, backClimb_ki,
 			backClimb_kd);
-	pid_limits(backClimb_pid, -20, 20);
+	pid_limits(backClimb_pid, -80, 80);
 	pid_sample(backClimb_pid, 1);
 	pid_auto(backClimb_pid);
 
@@ -292,6 +339,7 @@ int main(void)
 	uint32_t prev_time = HAL_GetTick();
 	ENCODER_Get_Angle(&encoderBack);
 	ENCODER_Get_Angle(&encoderFront);
+
 //	while (state_count++ < 1000)
 //		MPU6050_Read_All(&hi2c1, &MPU6050);
 //	initial_angle = MPU6050.KalmanAngleX;
@@ -374,10 +422,10 @@ int main(void)
 			//---------------------------------------------------------------------------------------------------
 //			if (button1.state == GPIO_PIN_SET
 //					&& button3.state == GPIO_PIN_RESET)
-//				speed[FRONT_INDEX] = 5;
+//				speed[FRONT_INDEX] = 10;
 //			else if (button1.state == GPIO_PIN_SET
 //					&& button3.state == GPIO_PIN_SET)
-//				speed[FRONT_INDEX] = -5;
+//				speed[FRONT_INDEX] = -10;
 //			else if (button1.state == GPIO_PIN_RESET)
 //				speed[FRONT_INDEX] = 0;
 //
@@ -396,7 +444,7 @@ int main(void)
 //										* cos(TO_RAD(encoderFront.angleDeg)) + BASE_HEIGHT
 //										- FRONT_CLIMB_WHEEL_DIAMETER / 2.0;
 
-
+//			send_HubMotor(1, 1);
 			//---------------------------------------------------------------------------------------------------
 			//Testing Climbing Position Control
 			//
@@ -410,16 +458,13 @@ int main(void)
 //			}
 //			if (state == TEST) {
 ////				goto_pos(0, backClimb_pid);
-//				goto_pos(0, frontClimb_pid);
-//				if (!climbingForward(forward_distance))
-//					state = NORMAL_DEBUG;
-////				send_HubMotor(1, 1);
-////				uint8_t data[] = "HELLO WORLD \r\n";
-////
-////				HAL_UART_Transmit (&huart3, data, sizeof (data), 10);
-////				HAL_UART_Transmit(&huart3, send_buf, 15);
+//				if (!in_climb_process(0, 2200))
+//				{
+//					HAL_Delay(500);
+//				}
+////				goto_pos(0, frontClimb_pid);
 //			}
-//
+
 //			if (state == NORMAL_DEBUG) {
 //				if (button1.state == GPIO_PIN_SET
 //						&& button3.state == GPIO_PIN_RESET)
@@ -457,8 +502,8 @@ int main(void)
 					&& climb_first_iteration == true)
 			{
 				button_prev_state = 1;
-				if (abs(encoderFront.signed_encoder_pos) >= 150
-						|| abs(encoderBack.signed_encoder_pos) >= 150)
+				if (abs(encoderFront.signed_encoder_pos) >= 50
+						|| abs(encoderBack.signed_encoder_pos) >= 50)
 				{
 					goto_pos(0, frontClimb_pid);
 					goto_pos(0, backClimb_pid);
@@ -511,12 +556,12 @@ int main(void)
 					ENCODER_Read(&encoderFront);
 
 					if (back_touchdown == false)
-						runMotor(&backMotor, 5);
+						runMotor(&backMotor, 30);
 					else
 						runMotor(&backMotor, 0);
 
 					if (front_touchdown == false)
-						runMotor(&rearMotor, 5);
+						runMotor(&rearMotor, 30);
 					else
 						runMotor(&rearMotor, 0);
 
@@ -550,7 +595,7 @@ int main(void)
 					curb_height = CLIMBING_LEG_LENGTH
 							* cos(TO_RAD(encoderFront.angleDeg)) + BASE_HEIGHT
 							- FRONT_CLIMB_WHEEL_DIAMETER / 2.0;
-					curb_height += 0.035; //Small error correction 10%
+					curb_height += 0.015; //Small error correction 10%
 
 					//First determine whether is the height climb-able
 					back_lifting_height = BACK_BASE_HEIGHT + curb_height
@@ -580,22 +625,26 @@ int main(void)
 
 				}
 				//Mathematical Model
-//				if (!in_climb_process(MAX_FRONT_CLIMBING_ENC, back_encoder_input) && !(climbingForward(forward_distance+0.02)))
+//				if (!in_climb_process(MAX_FRONT_CLIMBING_ENC, back_encoder_input) && !(climbingForward(forward_distance)))
 //				{
 //					lifting_mode = RETRACTION;
 //					HAL_Delay(500);
 //				}
 				//20cm Height of curb   && !(climbingForward(forward_distance))
-
-//				goto_pos(0, frontClimb_pid);
-//				goto_pos(0, backClimb_pid);
-				if (!in_climb_process(0, 0)
-						)
+				if (!in_climb_process(0, 2200) && !(climbingForward(1.0)))
 				{
 					lifting_mode = IDLE;
 					HAL_Delay(500);
 				}
-//				if (!in_climb_process(1600, 2200)
+//				goto_pos(0, frontClimb_pid);
+//				goto_pos(0, backClimb_pid);
+//				if (!in_climb_process(MAX_FRONT_CLIMBING_ENC, 2800) && !(climbingForward(forward_distance+0.02))
+//						)
+//				{
+//					lifting_mode = IDLE;
+//					HAL_Delay(500);
+//				}
+//				if (!in_climb_process(0, 0)
 //						)
 //				{
 //					lifting_mode = IDLE;
@@ -638,16 +687,14 @@ int main(void)
 			{
 
 				//retraction process
-				if (abs(
-						encoderBack.encoder_pos
-								- (MIN_BACK_ALLOWABLE_ENC)) > 100
-						|| abs(
-								encoderFront.encoder_pos
-										- (MIN_FRONT_ALLOWABLE_ENC))
-								> 100)
+				if (abs(encoderBack.encoder_pos- (MIN_BACK_ALLOWABLE_ENC)) > 30
+						|| abs(encoderFront.encoder_pos - (MIN_FRONT_ALLOWABLE_ENC))
+								> 30)
 				{
 					goto_pos(MIN_BACK_ALLOWABLE_ENC, backClimb_pid);
 					goto_pos(MIN_FRONT_ALLOWABLE_ENC, frontClimb_pid);
+					if (speed[FRONT_INDEX] == 0 && speed[BACK_INDEX] == 0)
+						lifting_mode = NORMAL;
 				}
 				else
 				{
@@ -659,29 +706,29 @@ int main(void)
 
 //			!Must not comment the following section
 			//Deadzone of climbing motor, force zero to avoid noise
-			if (fabs(speed[FRONT_INDEX]) < 4)
+			if (fabs(speed[FRONT_INDEX]) < 5)
 				speed[FRONT_INDEX] = 0;
-			if (fabs(speed[BACK_INDEX]) < 4)
+			if (fabs(speed[BACK_INDEX]) < 5)
 				speed[BACK_INDEX] = 0;
 			//*****VERY IMPORTANT AND MUST NOT BE COMMENTED OUT**********************************//
 			//Safety check for to avoid the climbing leg overturn
-			if (encoderFront.encoder_pos < FRONT_FULL_ROTATION_ENC / 2){
-				if (encoderFront.encoder_pos > MAX_FRONT_ALLOWABLE_ENC && speed[FRONT_INDEX] > 0)
-					speed[FRONT_INDEX] = 0;
-			}
-			else{
-				if (encoderFront.encoder_pos < MIN_FRONT_ALLOWABLE_ENC && speed[FRONT_INDEX] < 0)
-					speed[FRONT_INDEX] = 0;
-			}
-
-			if (encoderBack.encoder_pos < BACK_FULL_ROTATION_ENC / 2){
-				if (encoderBack.encoder_pos > MAX_BACK_ALLOWABLE_ENC && speed[BACK_INDEX] > 0)
-					speed[BACK_INDEX] = 0;
-			}
-			else{
-				if (encoderBack.encoder_pos < MIN_BACK_ALLOWABLE_ENC && speed[BACK_INDEX] < 0)
-					speed[BACK_INDEX] = 0;
-			}
+//			if (encoderFront.encoder_pos < FRONT_FULL_ROTATION_ENC / 2){
+//				if (encoderFront.encoder_pos > MAX_FRONT_ALLOWABLE_ENC && speed[FRONT_INDEX] > 0)
+//					speed[FRONT_INDEX] = 0;
+//			}
+//			else{
+//				if (encoderFront.encoder_pos < MIN_FRONT_ALLOWABLE_ENC && speed[FRONT_INDEX] < 0)
+//					speed[FRONT_INDEX] = 0;
+//			}
+//
+//			if (encoderBack.encoder_pos < BACK_FULL_ROTATION_ENC / 2){
+//				if (encoderBack.encoder_pos > MAX_BACK_ALLOWABLE_ENC && speed[BACK_INDEX] > 0)
+//					speed[BACK_INDEX] = 0;
+//			}
+//			else{
+//				if (encoderBack.encoder_pos < MIN_BACK_ALLOWABLE_ENC && speed[BACK_INDEX] < 0)
+//					speed[BACK_INDEX] = 0;
+//			}
 			//**********************************************************************************//
 
 			runMotor(&rearMotor, speed[FRONT_INDEX]);
@@ -877,7 +924,9 @@ void baseMotorCommand(void)
 //Hub motor move forward  by preset dist
 bool climbingForward(float dist)
 {
-	static int prev_tick = 0;
+	static uint32_t prev_tick = 0;
+	static uint32_t stationary_tick = 0; //prevent the hub stuck after the wheelchair landed
+	static float prev_dist_remaining;
 	static int32_t prev_enc;
 	static bool first_loop = true;
 	static float dist_remaining;
@@ -888,6 +937,7 @@ bool climbingForward(float dist)
 	{
 		prev_enc = hub_encoder_feedback.encoder_2;
 		prev_tick = HAL_GetTick();
+
 		first_loop = false;
 		dist_remaining = dist;
 	}
@@ -901,7 +951,15 @@ bool climbingForward(float dist)
 					- prev_enc) / dt) * 2 * M_PI / 4096;
 			dist_remaining -= (HUB_DIAMETER * rad_per_s * dt) / 2;
 			prev_tick = HAL_GetTick();
+			if(hub_encoder_feedback.encoder_2 == prev_enc){
+				if (((HAL_GetTick() - stationary_tick)/ FREQUENCY) > 3){
+					dist_remaining = 0;
+				}
+				else
+					stationary_tick = HAL_GetTick();
+			}
 			prev_enc = hub_encoder_feedback.encoder_2;
+
 		}
 		return true;
 	}
@@ -941,12 +999,19 @@ bool goto_pos(int enc, PID_t pid_t)
 			pid_compute(frontClimb_pid);
 			//Change actuator value
 			speed[FRONT_INDEX] = frontClimb_output;
+			if(fabs(speed[FRONT_INDEX]) < 5)
+			{
+				speed[FRONT_INDEX] = 0;
+				pid_reset(frontClimb_pid);
+			}
+
 			return true;
 
 		}
 		else
 		{
 //			speed[FRONT_INDEX] = 0;
+
 			return false;
 		}
 	}
@@ -973,11 +1038,18 @@ bool goto_pos(int enc, PID_t pid_t)
 			pid_compute(backClimb_pid);
 			//Change actuator value
 			speed[BACK_INDEX] = backClimb_output;
+			if(fabs(speed[BACK_INDEX]) < 5)
+			{
+				speed[BACK_INDEX] = 0;
+				pid_reset(backClimb_pid);
+			}
 			return true;
 		}
 		else
 		{
 //			speed[BACK_INDEX] = 0;
+//			if(fabs(speed[BACK_INDEX]) < 5)
+//				pid_reset(backClimb_pid);
 			return false;
 		}
 	}
@@ -1006,7 +1078,7 @@ bool in_climb_process(int front_enc, int back_enc)
 	goto_pos(front_enc, frontClimb_pid);
 	goto_pos(back_enc, backClimb_pid);
 
-	if (fabs(speed[FRONT_INDEX]) >= 4 || fabs(speed[BACK_INDEX]) >= 4)
+	if (fabs(speed[FRONT_INDEX]) >= 5 || fabs(speed[BACK_INDEX]) >= 5)
 		is_lifting = true;
 	else
 		is_lifting = false;

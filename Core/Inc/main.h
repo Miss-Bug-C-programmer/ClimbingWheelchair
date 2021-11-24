@@ -121,8 +121,6 @@ void Error_Handler(void);
 #define CUI_SPI2_CLK_GPIO_Port GPIOB
 #define CUI_SPI2_MISO_Pin GPIO_PIN_14
 #define CUI_SPI2_MISO_GPIO_Port GPIOB
-#define CUI_SPI2_MOSI_Pin GPIO_PIN_15
-#define CUI_SPI2_MOSI_GPIO_Port GPIOB
 #define HubM_UART3_TX_Pin GPIO_PIN_8
 #define HubM_UART3_TX_GPIO_Port GPIOD
 #define HubM_UART3_RX_Pin GPIO_PIN_9
@@ -143,8 +141,6 @@ void Error_Handler(void);
 #define Wheel_TIM3_CH1_GPIO_Port GPIOC
 #define Wheel_TIM3_CH2_Pin GPIO_PIN_7
 #define Wheel_TIM3_CH2_GPIO_Port GPIOC
-#define Climb_TIM8_CH4_Pin GPIO_PIN_9
-#define Climb_TIM8_CH4_GPIO_Port GPIOC
 #define Brake_Wheel_Pin GPIO_PIN_3
 #define Brake_Wheel_GPIO_Port GPIOD
 #define LED1_Pin GPIO_PIN_3

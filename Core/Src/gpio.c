@@ -38,7 +38,6 @@
         * EXTI
      PB13   ------> SPI2_SCK
      PB14   ------> SPI2_MISO
-     PB15   ------> SPI2_MOSI
      PB5   ------> CAN2_RX
 */
 void MX_GPIO_Init(void)
@@ -124,8 +123,8 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PBPin PBPin PBPin */
-  GPIO_InitStruct.Pin = CUI_SPI2_CLK_Pin|CUI_SPI2_MISO_Pin|CUI_SPI2_MOSI_Pin;
+  /*Configure GPIO pins : PBPin PBPin */
+  GPIO_InitStruct.Pin = CUI_SPI2_CLK_Pin|CUI_SPI2_MISO_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
