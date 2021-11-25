@@ -70,7 +70,7 @@ const uint32_t MIN_FRONT_ALLOWABLE_ENC = 6600; //6600
 const uint32_t MAX_FRONT_CLIMBING_ENC = 1950; //used for climbing up
 const uint32_t MAX_BACK_ALLOWABLE_ENC = 3000;
 const uint32_t MIN_BACK_ALLOWABLE_ENC = 7500;
-const uint32_t MAX_BACK_CLIMBING_ENC = 1750; //used when climbing down
+const uint32_t MAX_BACK_CLIMBING_ENC = 1850; //used when climbing down
 const uint32_t FRONT_FULL_ROTATION_ENC = 4096 * FRONT_GEAR_RATIO;
 const uint32_t BACK_FULL_ROTATION_ENC = 4096 * BACK_GEAR_RATIO;
 
@@ -145,7 +145,7 @@ struct pid_controller frontClimb_ctrl;
 PID_t frontClimb_pid;
 float frontClimb_input = 0, frontClimb_output = 0;
 float frontClimb_setpoint = 0;
-float frontClimb_kp = 0.1, frontClimb_ki = 0.003, frontClimb_kd = 0.00001;
+float frontClimb_kp = 0.35, frontClimb_ki = 0.003, frontClimb_kd = 0.00001;
 
 //Back Climbing Position Control
 struct pid_controller backClimb_ctrl;
@@ -167,7 +167,7 @@ uint8_t receive_buf[15];
 Encoder_Feedback hub_encoder_feedback;
 
 float climbForward_speed = 0; //rad/s`
-float forward_distance = BASE_LENGTH + 0.03; // (in meter) distance to travel during climbing process by hub
+float forward_distance = BASE_LENGTH; // (in meter) distance to travel during climbing process by hub
 bool is_lifting = false;
 //-----------------------------------------------------------------------------------------------
 //Debug Test
@@ -612,30 +612,30 @@ int main(void)
 					//1. The angle calculated is not feasible
 					//2. The leg rotate more than it supposed to
 					//3. The curb height is too low where climbing up is unnecessary
-//					if (isnan(back_lifting_angle)
-//							|| back_encoder_input >= MAX_BACK_ALLOWABLE_ENC
-//								|| curb_height <= 0.05 )
-//					{
-//						lifting_mode = RETRACTION;
-//						continue;
-//					}
+					if (isnan(back_lifting_angle)
+							|| back_encoder_input >= MAX_BACK_ALLOWABLE_ENC
+								|| curb_height <= 0.05 )
+					{
+						lifting_mode = RETRACTION;
+						continue;
+					}
 					speed[BACK_INDEX] = 0;
 					speed[FRONT_INDEX] = 0;
 					climb_first_iteration = false;
 
 				}
 				//Mathematical Model
-//				if (!in_climb_process(MAX_FRONT_CLIMBING_ENC, back_encoder_input) && !(climbingForward(forward_distance)))
+				if (!in_climb_process(MAX_FRONT_CLIMBING_ENC, back_encoder_input) && !(climbingForward(forward_distance+0.03)))
+				{
+					lifting_mode = RETRACTION;
+					HAL_Delay(500);
+				}
+				//20cm Height of curb   && !(climbingForward(forward_distance))
+//				if (!in_climb_process(0, 2200) && !(climbingForward(0.2)))
 //				{
 //					lifting_mode = RETRACTION;
 //					HAL_Delay(500);
 //				}
-				//20cm Height of curb   && !(climbingForward(forward_distance))
-				if (!in_climb_process(0, 2200) && !(climbingForward(1.0)))
-				{
-					lifting_mode = IDLE;
-					HAL_Delay(500);
-				}
 //				goto_pos(0, frontClimb_pid);
 //				goto_pos(0, backClimb_pid);
 //				if (!in_climb_process(MAX_FRONT_CLIMBING_ENC, 2800) && !(climbingForward(forward_distance+0.02))
@@ -660,7 +660,7 @@ int main(void)
 				if (climb_first_iteration)
 				{
 					front_climbDown_enc = encoderFront.encoder_pos
-							+ 3.0 / 360.0 * 4096 * FRONT_GEAR_RATIO;
+							+ 5.0 / 360.0 * 4096 * FRONT_GEAR_RATIO;
 
 					//First determine whether is the height climb-able
 //					if (front_climbDown_enc > MAX_FRONT_ALLOWABLE_ENC )
@@ -681,17 +681,26 @@ int main(void)
 					lifting_mode = RETRACTION;
 					HAL_Delay(500);
 				}
+
+//				if (!in_climb_process(front_climbDown_enc,
+//										MAX_BACK_CLIMBING_ENC))
+//								{
+//									lifting_mode = IDLE;
+//									HAL_Delay(500);
+//								}
 			}
 //
 			if (lifting_mode == RETRACTION)
 			{
-
+				HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
+				HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_SET);
 				//retraction process
-				if (abs(encoderBack.encoder_pos- (MIN_BACK_ALLOWABLE_ENC)) > 30
+				if (abs(encoderBack.encoder_pos- (0)) > 30
 						|| abs(encoderFront.encoder_pos - (MIN_FRONT_ALLOWABLE_ENC))
 								> 30)
 				{
-					goto_pos(MIN_BACK_ALLOWABLE_ENC, backClimb_pid);
+//					goto_pos(MIN_BACK_ALLOWABLE_ENC, backClimb_pid);
+					goto_pos(0, backClimb_pid);
 					goto_pos(MIN_FRONT_ALLOWABLE_ENC, frontClimb_pid);
 					if (speed[FRONT_INDEX] == 0 && speed[BACK_INDEX] == 0)
 						lifting_mode = NORMAL;
@@ -704,7 +713,7 @@ int main(void)
 
 			}
 
-//			!Must not comment the following section
+			//!Must not comment the following section
 			//Deadzone of climbing motor, force zero to avoid noise
 			if (fabs(speed[FRONT_INDEX]) < 5)
 				speed[FRONT_INDEX] = 0;
@@ -712,23 +721,23 @@ int main(void)
 				speed[BACK_INDEX] = 0;
 			//*****VERY IMPORTANT AND MUST NOT BE COMMENTED OUT**********************************//
 			//Safety check for to avoid the climbing leg overturn
-//			if (encoderFront.encoder_pos < FRONT_FULL_ROTATION_ENC / 2){
-//				if (encoderFront.encoder_pos > MAX_FRONT_ALLOWABLE_ENC && speed[FRONT_INDEX] > 0)
-//					speed[FRONT_INDEX] = 0;
-//			}
-//			else{
-//				if (encoderFront.encoder_pos < MIN_FRONT_ALLOWABLE_ENC && speed[FRONT_INDEX] < 0)
-//					speed[FRONT_INDEX] = 0;
-//			}
-//
-//			if (encoderBack.encoder_pos < BACK_FULL_ROTATION_ENC / 2){
-//				if (encoderBack.encoder_pos > MAX_BACK_ALLOWABLE_ENC && speed[BACK_INDEX] > 0)
-//					speed[BACK_INDEX] = 0;
-//			}
-//			else{
-//				if (encoderBack.encoder_pos < MIN_BACK_ALLOWABLE_ENC && speed[BACK_INDEX] < 0)
-//					speed[BACK_INDEX] = 0;
-//			}
+			if (encoderFront.encoder_pos < FRONT_FULL_ROTATION_ENC / 2){
+				if (encoderFront.encoder_pos > MAX_FRONT_ALLOWABLE_ENC && speed[FRONT_INDEX] > 0)
+					speed[FRONT_INDEX] = 0;
+			}
+			else{
+				if (encoderFront.encoder_pos < MIN_FRONT_ALLOWABLE_ENC && speed[FRONT_INDEX] < 0)
+					speed[FRONT_INDEX] = 0;
+			}
+
+			if (encoderBack.encoder_pos < BACK_FULL_ROTATION_ENC / 2){
+				if (encoderBack.encoder_pos > MAX_BACK_ALLOWABLE_ENC && speed[BACK_INDEX] > 0)
+					speed[BACK_INDEX] = 0;
+			}
+			else{
+				if (encoderBack.encoder_pos < MIN_BACK_ALLOWABLE_ENC && speed[BACK_INDEX] < 0)
+					speed[BACK_INDEX] = 0;
+			}
 			//**********************************************************************************//
 
 			runMotor(&rearMotor, speed[FRONT_INDEX]);
@@ -878,9 +887,9 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 			//Process the angle and GR
 			//4096 is encoder single turn value
 			//Need to check the encoder value in the correct direction
-			encoderBack.encoder_pos = (uint32_t) (4096 * BACK_GEAR_RATIO)
-					- encoderBack.encoder_pos
-							% (uint32_t) (4096 * BACK_GEAR_RATIO);
+			encoderBack.encoder_pos = (uint32_t)((4096 * BACK_GEAR_RATIO)
+					- encoderBack.encoder_pos)
+							% (4096 * BACK_GEAR_RATIO);
 			encoderBack.angleDeg = (float) encoderBack.encoder_pos
 					/ (4096 * BACK_GEAR_RATIO) * 360 + 36.587;
 			if (encoderBack.angleDeg > 360)
@@ -937,7 +946,7 @@ bool climbingForward(float dist)
 	{
 		prev_enc = hub_encoder_feedback.encoder_2;
 		prev_tick = HAL_GetTick();
-
+		stationary_tick = 0;
 		first_loop = false;
 		dist_remaining = dist;
 	}
@@ -951,13 +960,13 @@ bool climbingForward(float dist)
 					- prev_enc) / dt) * 2 * M_PI / 4096;
 			dist_remaining -= (HUB_DIAMETER * rad_per_s * dt) / 2;
 			prev_tick = HAL_GetTick();
-			if(hub_encoder_feedback.encoder_2 == prev_enc){
-				if (((HAL_GetTick() - stationary_tick)/ FREQUENCY) > 3){
-					dist_remaining = 0;
-				}
-				else
-					stationary_tick = HAL_GetTick();
-			}
+//			if(hub_encoder_feedback.encoder_2 == prev_enc){
+//				if (((HAL_GetTick() - stationary_tick)/ FREQUENCY) > 3){
+//					dist_remaining = 0;
+//				}
+//			}
+//			else
+//				stationary_tick = HAL_GetTick();
 			prev_enc = hub_encoder_feedback.encoder_2;
 
 		}

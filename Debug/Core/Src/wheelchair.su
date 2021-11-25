@@ -1,5 +1,5 @@
 wheelchair.c:20:6:joystick_Init	8	static
 wheelchair.c:24:6:joystickCalculatePos	32	static
 wheelchair.c:78:6:wheelSpeedControl_Init	24	static
-wheelchair.c:90:6:wheel_Control	32	static
-wheelchair.c:195:6:wheelCalculateSpeed	24	static
+wheelchair.c:90:6:wheel_Control	40	static
+wheelchair.c:196:6:wheelCalculateSpeed	24	static

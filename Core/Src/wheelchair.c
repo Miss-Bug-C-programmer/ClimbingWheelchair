@@ -108,8 +108,9 @@ void wheel_Control(WheelSpeed* wheel)
 
     if (wheel->start_from_stationary)
     {
-      left_speed_step = fabs( wheel->cur_l) / wheel->accel_loop;
-      right_speed_step = fabs( wheel->cur_l) / wheel->accel_loop;
+    	//deadzone 25, speed up initial speed
+      left_speed_step = 25 + fabs( wheel->cur_l) / wheel->accel_loop;
+      right_speed_step = 25 + fabs( wheel->cur_l) / wheel->accel_loop;
 
       if (fabs(wheel->pre_l) > 0.5f * wheel->max_angular_speed &&
           fabs(wheel->pre_r) > 0.5f * wheel->max_angular_speed)
