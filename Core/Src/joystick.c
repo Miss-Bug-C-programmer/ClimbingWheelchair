@@ -14,7 +14,6 @@ static const int JoystickCenterX = 32000;
 static const int JoystickCenterY = 32000;
 static const int JoystickMagnitudeMax = 18000;
 
-
 static const float JoyForwardAngle = 1.57;
 static const float JoyLeftTurnAngle = 3.142;
 static const float JoyRightTurnAngle = 0;

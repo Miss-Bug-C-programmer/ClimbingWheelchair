@@ -8,9 +8,7 @@
 #ifndef INC_DIFFERENTIALDRIVE_H_
 #define INC_DIFFERENTIALDRIVE_H_
 
-
 #define COMPUTERANGE 18000
-
 
 typedef struct{
 	int m_fPivYLimit;
