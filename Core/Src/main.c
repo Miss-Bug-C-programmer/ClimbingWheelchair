@@ -70,7 +70,7 @@ const uint32_t MIN_FRONT_ALLOWABLE_ENC = 6600; //6600
 const uint32_t MAX_FRONT_CLIMBING_ENC = 1950; //used for climbing up
 const uint32_t MAX_BACK_ALLOWABLE_ENC = 3000;
 const uint32_t MIN_BACK_ALLOWABLE_ENC = 7500;
-const uint32_t MAX_BACK_CLIMBING_ENC = 1800; //used when climbing down
+const uint32_t MAX_BACK_CLIMBING_ENC = 1850; //used when climbing down
 const uint32_t FRONT_FULL_ROTATION_ENC = 4096 * FRONT_GEAR_RATIO;
 const uint32_t BACK_FULL_ROTATION_ENC = 4096 * BACK_GEAR_RATIO;
 
@@ -190,6 +190,8 @@ void baseMotorCommand(void);
 bool climbingForward(float dist); //return true if in the process of moving forward
 bool goto_pos(int enc, PID_t pid_t); //return true if still in the process of reaching the position
 bool in_climb_process(int front_enc, int back_enc);
+
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -928,8 +930,6 @@ void baseMotorCommand(void)
 bool climbingForward(float dist)
 {
 	static uint32_t prev_tick = 0;
-	static uint32_t stationary_tick = 0; //prevent the hub stuck after the wheelchair landed
-	static float prev_dist_remaining;
 	static int32_t prev_enc;
 	static bool first_loop = true;
 	static float dist_remaining;
@@ -940,7 +940,6 @@ bool climbingForward(float dist)
 	{
 		prev_enc = hub_encoder_feedback.encoder_2;
 		prev_tick = HAL_GetTick();
-		stationary_tick = 0;
 		first_loop = false;
 		dist_remaining = dist;
 	}
