@@ -70,7 +70,7 @@ const uint32_t MIN_FRONT_ALLOWABLE_ENC = 6600; //6600
 const uint32_t MAX_FRONT_CLIMBING_ENC = 1950; //used for climbing up
 const uint32_t MAX_BACK_ALLOWABLE_ENC = 3000;
 const uint32_t MIN_BACK_ALLOWABLE_ENC = 7500;
-const uint32_t MAX_BACK_CLIMBING_ENC = 1850; //used when climbing down
+const uint32_t MAX_BACK_CLIMBING_ENC = 1800; //used when climbing down
 const uint32_t FRONT_FULL_ROTATION_ENC = 4096 * FRONT_GEAR_RATIO;
 const uint32_t BACK_FULL_ROTATION_ENC = 4096 * BACK_GEAR_RATIO;
 
@@ -169,6 +169,7 @@ Encoder_Feedback hub_encoder_feedback;
 float climbForward_speed = 0; //rad/s`
 float forward_distance = BASE_LENGTH; // (in meter) distance to travel during climbing process by hub
 bool is_lifting = false;
+bool finish_climbing_flag = false;
 //-----------------------------------------------------------------------------------------------
 //Debug Test
 //-----------------------------------------------------------------------------------------------
@@ -189,52 +190,6 @@ void baseMotorCommand(void);
 bool climbingForward(float dist); //return true if in the process of moving forward
 bool goto_pos(int enc, PID_t pid_t); //return true if still in the process of reaching the position
 bool in_climb_process(int front_enc, int back_enc);
-
-#define TIMCLOCK   90000000
-#define PRESCALAR  90
-
-uint32_t IC_Val1 = 0;
-uint32_t IC_Val2 = 0;
-uint32_t Difference = 0;
-int Is_First_Captured = 0;
-
-/* Measure Frequency */
-float frequency = 0;
-
-void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
-{
-	if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_4)
-	{
-		if (Is_First_Captured==0) // if the first rising edge is not captured
-		{
-			IC_Val1 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_4); // read the first value
-			Is_First_Captured = 1;  // set the first captured as true
-		}
-
-		else   // If the first rising edge is captured, now we will capture the second edge
-		{
-			IC_Val2 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_4);  // read second value
-
-			if (IC_Val2 > IC_Val1)
-			{
-				Difference = IC_Val2-IC_Val1;
-			}
-
-			else if (IC_Val1 > IC_Val2)
-			{
-				Difference = (0xffff - IC_Val1) + IC_Val2;
-			}
-
-			float refClock = TIMCLOCK/(PRESCALAR);
-
-			frequency = refClock/Difference;
-
-			__HAL_TIM_SET_COUNTER(htim, 0);  // reset the counter
-			Is_First_Captured = 0; // set it back to false
-		}
-	}
-}
-
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -625,11 +580,30 @@ int main(void)
 
 				}
 				//Mathematical Model
-				if (!in_climb_process(MAX_FRONT_CLIMBING_ENC, back_encoder_input) && !(climbingForward(forward_distance+0.03)))
-				{
-					lifting_mode = RETRACTION;
-					HAL_Delay(500);
+//				if (!in_climb_process(MAX_FRONT_CLIMBING_ENC, back_encoder_input) && !(climbingForward(forward_distance+0.03)))
+//				{
+//					lifting_mode = RETRACTION;
+//					HAL_Delay(500);
+//				}
+
+				//Start Climbing process
+				if (finish_climbing_flag == false){
+					if(!in_climb_process(MAX_FRONT_CLIMBING_ENC,back_encoder_input))
+						finish_climbing_flag = true;
 				}
+
+
+				if (finish_climbing_flag == true){
+					emBrakeMotor(0);
+					if(!(climbingForward(forward_distance+0.03)))
+					{
+						emBrakeMotor(1);
+						finish_climbing_flag = false;
+						lifting_mode = RETRACTION;
+						HAL_Delay(500);
+					}
+				}
+
 				//20cm Height of curb   && !(climbingForward(forward_distance))
 //				if (!in_climb_process(0, 2200) && !(climbingForward(0.2)))
 //				{
@@ -674,13 +648,32 @@ int main(void)
 					speed[FRONT_INDEX] = 0;
 				}
 
-				if (!in_climb_process(front_climbDown_enc,
-						MAX_BACK_CLIMBING_ENC)
-						&& !(climbingForward(forward_distance)))
-				{
-					lifting_mode = RETRACTION;
-					HAL_Delay(500);
+//				if (!in_climb_process(front_climbDown_enc,
+//						MAX_BACK_CLIMBING_ENC)
+//						&& !(climbingForward(forward_distance)))
+//				{
+//					lifting_mode = RETRACTION;
+//					HAL_Delay(500);
+//				}
+
+				//Start Climbing process
+				if (finish_climbing_flag == false){
+					if(!in_climb_process(front_climbDown_enc,MAX_BACK_CLIMBING_ENC))
+						finish_climbing_flag = true;
 				}
+
+
+				if (finish_climbing_flag == true){
+					emBrakeMotor(0);
+					if(!(climbingForward(forward_distance)))
+					{
+						emBrakeMotor(1);
+						finish_climbing_flag = false;
+						lifting_mode = RETRACTION;
+						HAL_Delay(500);
+					}
+				}
+
 
 //				if (!in_climb_process(front_climbDown_enc,
 //										MAX_BACK_CLIMBING_ENC))
@@ -692,15 +685,16 @@ int main(void)
 //
 			if (lifting_mode == RETRACTION)
 			{
+
 				HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
 				HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_SET);
 				//retraction process
-				if (abs(encoderBack.encoder_pos- (0)) > 30
+				if (abs(encoderBack.encoder_pos- (MIN_BACK_ALLOWABLE_ENC)) > 30
 						|| abs(encoderFront.encoder_pos - (MIN_FRONT_ALLOWABLE_ENC))
 								> 30)
 				{
-//					goto_pos(MIN_BACK_ALLOWABLE_ENC, backClimb_pid);
-					goto_pos(0, backClimb_pid);
+					goto_pos(MIN_BACK_ALLOWABLE_ENC, backClimb_pid);
+//					goto_pos(0, backClimb_pid);
 					goto_pos(MIN_FRONT_ALLOWABLE_ENC, frontClimb_pid);
 					if (speed[FRONT_INDEX] == 0 && speed[BACK_INDEX] == 0)
 						lifting_mode = NORMAL;

@@ -15,7 +15,11 @@ static const int JoyPosBufferSize = 5;
 static int joyPosBuffer[2][5] = {0};
 static int joy_pos_buffer_cnt = 0;
 static const float JoyForwardAngle = 1.57;
-static const float JoyForwardAngleDeadzone = 0.1;
+static const float JoyForwardAngleDeadzone = 0.3;
+static const float JoyTurnAngleDeadzone = 0.2;
+
+static const float JoyLeftTurnAngle = 3.142;
+static const float JoyRightTurnAngle = 0;
 
 void joystick_Init(void){
   memset(joyPosBuffer, 0, sizeof(joyPosBuffer));
@@ -62,6 +66,15 @@ void joystickCalculatePos(void)
   if (hJoystick.angle > -(JoyForwardAngle + JoyForwardAngleDeadzone) &&
       hJoystick.angle < -(JoyForwardAngle - JoyForwardAngleDeadzone))
     hJoystick.angle = -JoyForwardAngle;
+
+  // filter joystick right turn deadzone
+	if (hJoystick.angle > JoyRightTurnAngle - JoyTurnAngleDeadzone &&
+		hJoystick.angle < JoyRightTurnAngle + JoyTurnAngleDeadzone)
+	  hJoystick.angle = JoyRightTurnAngle;
+  // filter joystick left turn deadzone
+    if (hJoystick.angle > JoyLeftTurnAngle - JoyTurnAngleDeadzone ||
+        hJoystick.angle < -JoyLeftTurnAngle + JoyTurnAngleDeadzone)
+      hJoystick.angle = JoyLeftTurnAngle;
 
   // normalize joystick reading
   hJoystick.linear = hJoystick.magnitude/JoystickMagnitudeMax * sin(hJoystick.angle);
@@ -119,6 +132,11 @@ void wheel_Control(WheelSpeed* wheel)
       }
     }
 
+    if (wheel->cur_l/wheel->pre_l < 0)
+    	left_speed_step = 50;
+    if (wheel->cur_r/wheel->pre_r < 0)
+        	right_speed_step = 50;
+
     if (( wheel->cur_l - wheel->pre_l) > left_speed_step)
       wheel->cur_l = wheel->pre_l + left_speed_step;
     else if ((wheel->cur_l - wheel->pre_l) < -left_speed_step)
@@ -141,8 +159,10 @@ void wheel_Control(WheelSpeed* wheel)
 //    float left_speed_step = fabs(wheel->cur_l) / wheel->decel_loop;
 //    float right_speed_step = fabs(wheel->cur_r) / wheel->decel_loop;
 //
-    float left_speed_step = 10;
-    float right_speed_step = 10;
+    float left_speed_step = 30;
+    float right_speed_step = 30;
+
+
 
 //    if (wheel->cur_l >= left_speed_step)
 //      wheel->cur_l = wheel->pre_l - left_speed_step;
@@ -157,7 +177,12 @@ void wheel_Control(WheelSpeed* wheel)
 //      wheel->cur_r = wheel->pre_r + right_speed_step;
 //    else
 //      wheel->cur_r = 0;
+    if (wheel->cur_l/wheel->pre_l < 0)
+    	left_speed_step = 50;
+    if (wheel->cur_r/wheel->pre_r < 0)
+    	right_speed_step = 50;
 
+    //Latency when sign change
     if (wheel->pre_l > left_speed_step)
       wheel->cur_l = wheel->pre_l - left_speed_step;
     else if (wheel->pre_l < -left_speed_step)
@@ -171,6 +196,7 @@ void wheel_Control(WheelSpeed* wheel)
       wheel->cur_r = wheel->pre_r + right_speed_step;
     else
       wheel->cur_r = 0;
+
 
 
 
