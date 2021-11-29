@@ -179,6 +179,8 @@ enum Mode
 };
 enum Mode state = NORMAL_DEBUG;
 int state_count = 0;
+
+int motor_speed = 0;
 //float dist = 0.386;
 
 /* USER CODE END PV */
@@ -402,6 +404,7 @@ int main(void)
 //										- FRONT_CLIMB_WHEEL_DIAMETER / 2.0;
 
 //			send_HubMotor(1, 1);
+
 			//---------------------------------------------------------------------------------------------------
 			//Testing Climbing Position Control
 			//
@@ -507,8 +510,6 @@ int main(void)
 							&& lifting_mode == LANDING)
 						lifting_mode = CLIMB_DOWN;
 
-//					initial_angle = exp_angle_filter * MPU6050.KalmanAngleXf
-
 					ENCODER_Read(&encoderBack);
 					ENCODER_Read(&encoderFront);
 
@@ -529,7 +530,7 @@ int main(void)
 				HAL_Delay(500);
 				continue; //to refresh the loop and get the latest encoder reading
 			}
-//			//Normal wheelchair mode, basic joystick control mode
+			//Normal wheelchair mode, basic joystick control mode
 			if (lifting_mode == NORMAL)
 			{
 				HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
@@ -542,7 +543,7 @@ int main(void)
 				speed[FRONT_INDEX] = 0;
 				speed[BACK_INDEX] = 0;
 			}
-//			//Climbing up process
+			//Climbing up process
 			if (lifting_mode == CLIMB_UP)
 			{
 				HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
@@ -579,21 +580,13 @@ int main(void)
 					speed[BACK_INDEX] = 0;
 					speed[FRONT_INDEX] = 0;
 					climb_first_iteration = false;
-
 				}
 				//Mathematical Model
-//				if (!in_climb_process(MAX_FRONT_CLIMBING_ENC, back_encoder_input) && !(climbingForward(forward_distance+0.03)))
-//				{
-//					lifting_mode = RETRACTION;
-//					HAL_Delay(500);
-//				}
-
 				//Start Climbing process
 				if (finish_climbing_flag == false){
 					if(!in_climb_process(MAX_FRONT_CLIMBING_ENC,back_encoder_input))
 						finish_climbing_flag = true;
 				}
-
 
 				if (finish_climbing_flag == true){
 					emBrakeMotor(0);
@@ -605,28 +598,6 @@ int main(void)
 						HAL_Delay(500);
 					}
 				}
-
-				//20cm Height of curb   && !(climbingForward(forward_distance))
-//				if (!in_climb_process(0, 2200) && !(climbingForward(0.2)))
-//				{
-//					lifting_mode = RETRACTION;
-//					HAL_Delay(500);
-//				}
-//				goto_pos(0, frontClimb_pid);
-//				goto_pos(0, backClimb_pid);
-//				if (!in_climb_process(MAX_FRONT_CLIMBING_ENC, 2800) && !(climbingForward(forward_distance+0.02))
-//						)
-//				{
-//					lifting_mode = IDLE;
-//					HAL_Delay(500);
-//				}
-//				if (!in_climb_process(0, 0)
-//						)
-//				{
-//					lifting_mode = IDLE;
-//					HAL_Delay(500);
-//				}
-
 			}
 
 			else if (lifting_mode == CLIMB_DOWN)
@@ -639,31 +610,22 @@ int main(void)
 							+ 5.0 / 360.0 * 4096 * FRONT_GEAR_RATIO;
 
 					//First determine whether is the height climb-able
-//					if (front_climbDown_enc > MAX_FRONT_ALLOWABLE_ENC )
-//					{
-//						lifting_mode = RETRACTION;
-//						continue;
-//					}
+					if (front_climbDown_enc > MAX_FRONT_ALLOWABLE_ENC )
+					{
+						lifting_mode = RETRACTION;
+						continue;
+					}
 					climb_first_iteration = false;
 
 					speed[BACK_INDEX] = 0;
 					speed[FRONT_INDEX] = 0;
 				}
 
-//				if (!in_climb_process(front_climbDown_enc,
-//						MAX_BACK_CLIMBING_ENC)
-//						&& !(climbingForward(forward_distance)))
-//				{
-//					lifting_mode = RETRACTION;
-//					HAL_Delay(500);
-//				}
-
 				//Start Climbing process
 				if (finish_climbing_flag == false){
 					if(!in_climb_process(front_climbDown_enc,MAX_BACK_CLIMBING_ENC))
 						finish_climbing_flag = true;
 				}
-
 
 				if (finish_climbing_flag == true){
 					emBrakeMotor(0);
@@ -675,16 +637,7 @@ int main(void)
 						HAL_Delay(500);
 					}
 				}
-
-
-//				if (!in_climb_process(front_climbDown_enc,
-//										MAX_BACK_CLIMBING_ENC))
-//								{
-//									lifting_mode = IDLE;
-//									HAL_Delay(500);
-//								}
 			}
-//
 			if (lifting_mode == RETRACTION)
 			{
 
@@ -696,7 +649,6 @@ int main(void)
 								> 30)
 				{
 					goto_pos(MIN_BACK_ALLOWABLE_ENC, backClimb_pid);
-//					goto_pos(0, backClimb_pid);
 					goto_pos(MIN_FRONT_ALLOWABLE_ENC, frontClimb_pid);
 					if (speed[FRONT_INDEX] == 0 && speed[BACK_INDEX] == 0)
 						lifting_mode = NORMAL;

@@ -22,6 +22,15 @@ static const float JoyTurnAngleDeadzone = 0.2;
 
 static JoystickHandle prev_joystick = {.x = -1, .y = -1};
 
+/*********************************************************************
+ * @fn      		  - calculatePos
+ *
+ * @brief             - Calculate joystick x and y value by fitlering the raw data and considering the deadzone
+ *
+ * @return            - None
+ *
+ * @Note              -
+ */
 void calculatePos(void)
 {
 	double angle;
@@ -74,6 +83,4 @@ void calculatePos(void)
 	if (angle > JoyLeftTurnAngle - JoyTurnAngleDeadzone
 			|| angle < -JoyLeftTurnAngle + JoyTurnAngleDeadzone)
 		processed_hjoystick.y = 0;
-
-
 }
