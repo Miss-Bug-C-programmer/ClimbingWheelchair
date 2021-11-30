@@ -8,6 +8,7 @@ C_SRCS += \
 ../Core/Src/PID.c \
 ../Core/Src/X2_6010S.c \
 ../Core/Src/adc.c \
+../Core/Src/battery.c \
 ../Core/Src/bd25l.c \
 ../Core/Src/button.c \
 ../Core/Src/can.c \
@@ -34,6 +35,7 @@ OBJS += \
 ./Core/Src/PID.o \
 ./Core/Src/X2_6010S.o \
 ./Core/Src/adc.o \
+./Core/Src/battery.o \
 ./Core/Src/bd25l.o \
 ./Core/Src/button.o \
 ./Core/Src/can.o \
@@ -60,6 +62,7 @@ C_DEPS += \
 ./Core/Src/PID.d \
 ./Core/Src/X2_6010S.d \
 ./Core/Src/adc.d \
+./Core/Src/battery.d \
 ./Core/Src/bd25l.d \
 ./Core/Src/button.d \
 ./Core/Src/can.d \

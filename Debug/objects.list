@@ -1,6 +1,7 @@
 "./Core/Src/PID.o"
 "./Core/Src/X2_6010S.o"
 "./Core/Src/adc.o"
+"./Core/Src/battery.o"
 "./Core/Src/bd25l.o"
 "./Core/Src/button.o"
 "./Core/Src/can.o"
