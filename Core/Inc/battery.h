@@ -39,7 +39,7 @@ void BatteryInit(batteryHandler* battery_handler, UART_HandleTypeDef* huart);
 
 void getBatteryState(batteryHandler* battery_handler);
 
-void ReadBatteryState(batteryHandler* battery_handler, uint8_t receive_buf[], uint16_t size);
+void ReadBatteryState(batteryHandler* battery_handler, uint8_t receive_buf[]);
 
 
 
