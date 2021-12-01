@@ -19,7 +19,6 @@ C_SRCS += \
 ../Core/Src/gpio.c \
 ../Core/Src/i2c.c \
 ../Core/Src/joystick.c \
-../Core/Src/main.c \
 ../Core/Src/mpu6050.c \
 ../Core/Src/spi.c \
 ../Core/Src/stm32f4xx_hal_msp.c \
@@ -27,6 +26,7 @@ C_SRCS += \
 ../Core/Src/syscalls.c \
 ../Core/Src/sysmem.c \
 ../Core/Src/system_stm32f4xx.c \
+../Core/Src/test_battery.c \
 ../Core/Src/tim.c \
 ../Core/Src/usart.c \
 ../Core/Src/wheelchair.c 
@@ -46,7 +46,6 @@ OBJS += \
 ./Core/Src/gpio.o \
 ./Core/Src/i2c.o \
 ./Core/Src/joystick.o \
-./Core/Src/main.o \
 ./Core/Src/mpu6050.o \
 ./Core/Src/spi.o \
 ./Core/Src/stm32f4xx_hal_msp.o \
@@ -54,6 +53,7 @@ OBJS += \
 ./Core/Src/syscalls.o \
 ./Core/Src/sysmem.o \
 ./Core/Src/system_stm32f4xx.o \
+./Core/Src/test_battery.o \
 ./Core/Src/tim.o \
 ./Core/Src/usart.o \
 ./Core/Src/wheelchair.o 
@@ -73,7 +73,6 @@ C_DEPS += \
 ./Core/Src/gpio.d \
 ./Core/Src/i2c.d \
 ./Core/Src/joystick.d \
-./Core/Src/main.d \
 ./Core/Src/mpu6050.d \
 ./Core/Src/spi.d \
 ./Core/Src/stm32f4xx_hal_msp.d \
@@ -81,6 +80,7 @@ C_DEPS += \
 ./Core/Src/syscalls.d \
 ./Core/Src/sysmem.d \
 ./Core/Src/system_stm32f4xx.d \
+./Core/Src/test_battery.d \
 ./Core/Src/tim.d \
 ./Core/Src/usart.d \
 ./Core/Src/wheelchair.d 

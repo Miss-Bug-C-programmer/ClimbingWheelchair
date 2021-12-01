@@ -36,7 +36,7 @@ typedef struct{
 }batteryHandler;
 
 void BatteryInit(batteryHandler* battery_handler, UART_HandleTypeDef* huart);
-
+void BatteryDeInit(batteryHandler* battery_handler);
 void getBatteryState(batteryHandler* battery_handler);
 
 void ReadBatteryState(batteryHandler* battery_handler, uint8_t receive_buf[]);
