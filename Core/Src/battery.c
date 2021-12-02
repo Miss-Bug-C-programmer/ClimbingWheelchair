@@ -154,6 +154,7 @@ void ReadBatteryState(batteryHandler* battery_handler, uint8_t receive_buf[]){
 		battery_handler->battery_info.NTC_content[i] =  (receive_buf[REPLY_NTC_CONTENT_IDX + 2*i] << 8) & 0xFF00;
 		battery_handler->battery_info.NTC_content[i] |=  receive_buf[REPLY_NTC_CONTENT_IDX + 2*i + 1] & 0x00FF;
 	}
+
 }
 
 uint16_t CalculateCheckSum(uint8_t buf[], int start_pos, int end_pos){

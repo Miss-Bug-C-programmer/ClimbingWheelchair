@@ -517,6 +517,7 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 	if (huart->Instance == USART2)
 	{
 		ReadBatteryState(&main_power_supply, battery_receive_buf);
+		memset(battery_receive_buf, 0, sizeof(battery_receive_buf));
 		getBatteryState(&main_power_supply);
 	}
 }
