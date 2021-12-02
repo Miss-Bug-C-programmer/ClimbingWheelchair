@@ -25,6 +25,7 @@
 #include "spi.h"
 #include "tim.h"
 #include "usart.h"
+#include "usb_device.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -42,6 +43,8 @@
 #include "wheelchair.h"
 #include "PID.h"
 #include "battery.h"
+#include "usbd_cdc_if.h"
+#include "string.h"
 
 /* USER CODE END Includes */
 
@@ -189,6 +192,7 @@ batteryHandler main_power_supply;
 uint8_t battery_receive_buf[50];
 extern DMA_HandleTypeDef hdma_usart2_rx;
 extern UART_HandleTypeDef huart2;
+char *data = "Hello World from USB CDC\n";
 
 /* USER CODE END PV */
 
@@ -249,13 +253,14 @@ int main(void)
   MX_CAN1_Init();
   MX_SPI1_Init();
   MX_USART2_UART_Init();
+  MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
 	//Initialize hardware communication
 //	joystick_Init();
 //	ADC_Init();
 //	ADC_DataRequest();
 //	ENCODER_Init();
-	BatteryInit(&main_power_supply, &huart2);
+//	BatteryInit(&main_power_supply, &huart2);
 
 //	uint32_t state_count = HAL_GetTick();
 //	while (MPU6050_Init(&hi2c1) == 1)
@@ -322,12 +327,13 @@ int main(void)
 //	uint32_t debug_prev_time = HAL_GetTick();
 //	uint8_t led_status = 0;
 	//  float speed = 0;
-	__HAL_DMA_DISABLE_IT(&hdma_usart2_rx, DMA_IT_HT);
-	getBatteryState(&main_power_supply);
+//	__HAL_DMA_DISABLE_IT(&hdma_usart2_rx, DMA_IT_HT);
+//	getBatteryState(&main_power_supply);
 	while (1)
 	{
 //		while(HAL_GPIO_ReadPin(Button1_GPIO_Port, Button1_Pin) == GPIO_PIN_RESET);
 //		getBatteryState(&main_power_supply);
+		CDC_Transmit_FS(data, strlen(data));
 		HAL_Delay(500);
 
     /* USER CODE END WHILE */
@@ -354,7 +360,7 @@ void SystemClock_Config(void)
   /** Configure the main internal regulator output voltage
   */
   __HAL_RCC_PWR_CLK_ENABLE();
-  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
+  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE3);
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
@@ -363,16 +369,10 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLM = 8;
-  RCC_OscInitStruct.PLL.PLLN = 180;
+  RCC_OscInitStruct.PLL.PLLN = 72;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
-  RCC_OscInitStruct.PLL.PLLQ = 4;
+  RCC_OscInitStruct.PLL.PLLQ = 3;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /** Activate the Over-Drive mode
-  */
-  if (HAL_PWREx_EnableOverDrive() != HAL_OK)
   {
     Error_Handler();
   }
@@ -382,10 +382,10 @@ void SystemClock_Config(void)
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
-  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
+  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
   {
     Error_Handler();
   }
