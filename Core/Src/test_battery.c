@@ -25,7 +25,6 @@
 #include "spi.h"
 #include "tim.h"
 #include "usart.h"
-#include "usb_device.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -43,7 +42,6 @@
 #include "wheelchair.h"
 #include "PID.h"
 #include "battery.h"
-#include "usbd_cdc_if.h"
 #include "string.h"
 
 /* USER CODE END Includes */
@@ -253,14 +251,13 @@ int main(void)
   MX_CAN1_Init();
   MX_SPI1_Init();
   MX_USART2_UART_Init();
-  MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
 	//Initialize hardware communication
 //	joystick_Init();
 //	ADC_Init();
 //	ADC_DataRequest();
 //	ENCODER_Init();
-//	BatteryInit(&main_power_supply, &huart2);
+	BatteryInit(&main_power_supply, &huart2);
 
 //	uint32_t state_count = HAL_GetTick();
 //	while (MPU6050_Init(&hi2c1) == 1)
@@ -272,11 +269,11 @@ int main(void)
 	//Start base wheel PWM pin
 //	wheelSpeedControl_Init(&baseWheelSpeed, base_linSpeedLevel[base_speedLevel],
 //			base_angSpeedLevel[base_speedLevel]);
-//	HAL_TIM_Base_Start(&MOTOR_TIM);
-//	HAL_TIM_PWM_Start(&MOTOR_TIM, TIM_CHANNEL_1);
-//	HAL_TIM_PWM_Start(&MOTOR_TIM, TIM_CHANNEL_2);
-//	MOTOR_TIM.Instance->RIGHT_MOTOR_CHANNEL = 1500;
-//	MOTOR_TIM.Instance->LEFT_MOTOR_CHANNEL = 1500;
+	HAL_TIM_Base_Start(&MOTOR_TIM);
+	HAL_TIM_PWM_Start(&MOTOR_TIM, TIM_CHANNEL_1);
+	HAL_TIM_PWM_Start(&MOTOR_TIM, TIM_CHANNEL_2);
+	MOTOR_TIM.Instance->RIGHT_MOTOR_CHANNEL = 1500;
+	MOTOR_TIM.Instance->LEFT_MOTOR_CHANNEL = 1500;
 //
 ////	//Initialize rear and back motor
 //	bd25l_Init(&rearMotor);
@@ -328,12 +325,63 @@ int main(void)
 //	uint8_t led_status = 0;
 	//  float speed = 0;
 //	__HAL_DMA_DISABLE_IT(&hdma_usart2_rx, DMA_IT_HT);
-//	getBatteryState(&main_power_supply);
+	getBatteryState(&main_power_supply);
 	while (1)
 	{
+		GPIO_Digital_Filtered_Input(&button1, 30);
+		GPIO_Digital_Filtered_Input(&button2, 30);
+		GPIO_Digital_Filtered_Input(&button3, 30);
+
+		GPIO_Digital_Filtered_Input(&rearLS1, 5);
+		GPIO_Digital_Filtered_Input(&rearLS2, 5);
+		GPIO_Digital_Filtered_Input(&backLS1, 5);
+		GPIO_Digital_Filtered_Input(&backLS2, 5);
+
+//---------------------------------------------------------------------------------------------------
+		//Test pwm -> speed mapping mechanism
+		//---------------------------------------------------------------------------------------------------
+//			if (button1.state == GPIO_PIN_SET
+//					&& button3.state == GPIO_PIN_RESET)
+//				speed[FRONT_INDEX] = 10;
+//			else if (button1.state == GPIO_PIN_SET
+//					&& button3.state == GPIO_PIN_SET)
+//				speed[FRONT_INDEX] = -10;
+//			else if (button1.state == GPIO_PIN_RESET)
+//				speed[FRONT_INDEX] = 0;
+//
+//			if (button2.state == GPIO_PIN_SET
+//					&& button3.state == GPIO_PIN_RESET)
+//				speed[BACK_INDEX] = 10;
+//			else if (button2.state == GPIO_PIN_SET
+//					&& button3.state == GPIO_PIN_SET)
+//				speed[BACK_INDEX] = -10;
+//			else if (button2.state == GPIO_PIN_RESET)
+//				speed[BACK_INDEX] = 0;
+//			if (button3.state == GPIO_PIN_SET){
+//				motor_speed += 50;
+//				HAL_Delay(500);
+//			}
+		if (GPIO_Digital_Filtered_Input(&button3, 30) == GPIO_PIN_SET){
+			motor_speed += 50;
+			HAL_Delay(500);
+		}
+		if (GPIO_Digital_Filtered_Input(&button1, 30) == GPIO_PIN_SET){
+			motor_speed -= 50;
+			HAL_Delay(500);
+		}
+//		if (button1.state == GPIO_PIN_SET)
+//			MOTOR_TIM.Instance->LEFT_MOTOR_CHANNEL = motor_speed + 1500;
+//		else if (button1.state == GPIO_PIN_RESET)
+//			MOTOR_TIM.Instance->LEFT_MOTOR_CHANNEL = 1500;
+//
+//		if (button2.state == GPIO_PIN_SET)
+//			MOTOR_TIM.Instance->RIGHT_MOTOR_CHANNEL = motor_speed + 1500;
+//		else if (button2.state == GPIO_PIN_RESET)
+//			MOTOR_TIM.Instance->RIGHT_MOTOR_CHANNEL = 1500;
+		MOTOR_TIM.Instance->LEFT_MOTOR_CHANNEL = motor_speed + 1500;
+		MOTOR_TIM.Instance->RIGHT_MOTOR_CHANNEL = motor_speed + 1500;
 //		while(HAL_GPIO_ReadPin(Button1_GPIO_Port, Button1_Pin) == GPIO_PIN_RESET);
 //		getBatteryState(&main_power_supply);
-		CDC_Transmit_FS(data, strlen(data));
 		HAL_Delay(500);
 
     /* USER CODE END WHILE */
@@ -360,7 +408,7 @@ void SystemClock_Config(void)
   /** Configure the main internal regulator output voltage
   */
   __HAL_RCC_PWR_CLK_ENABLE();
-  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE3);
+  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
@@ -369,10 +417,16 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLM = 8;
-  RCC_OscInitStruct.PLL.PLLN = 72;
+  RCC_OscInitStruct.PLL.PLLN = 180;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = 3;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Activate the Over-Drive mode
+  */
+  if (HAL_PWREx_EnableOverDrive() != HAL_OK)
   {
     Error_Handler();
   }
@@ -382,10 +436,10 @@ void SystemClock_Config(void)
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
-  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
+  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5) != HAL_OK)
   {
     Error_Handler();
   }
