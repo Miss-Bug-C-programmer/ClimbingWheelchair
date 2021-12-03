@@ -29,7 +29,6 @@ extern "C" {
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f4xx_hal.h"
-#include "stm32f4xx_hal.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -137,10 +136,6 @@ void Error_Handler(void);
 #define HubM_IO_NOT_GPIO_Port GPIOD
 #define HubM_IO_POT_Pin GPIO_PIN_15
 #define HubM_IO_POT_GPIO_Port GPIOD
-#define Wheel_TIM3_CH1_Pin GPIO_PIN_6
-#define Wheel_TIM3_CH1_GPIO_Port GPIOC
-#define Wheel_TIM3_CH2_Pin GPIO_PIN_7
-#define Wheel_TIM3_CH2_GPIO_Port GPIOC
 #define Brake_Wheel_Pin GPIO_PIN_3
 #define Brake_Wheel_GPIO_Port GPIOD
 #define LED1_Pin GPIO_PIN_3
