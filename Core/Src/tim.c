@@ -1,8 +1,8 @@
 /**
   ******************************************************************************
-  * File Name          : TIM.c
-  * Description        : This file provides code for the configuration
-  *                      of the TIM instances.
+  * @file    tim.c
+  * @brief   This file provides code for the configuration
+  *          of the TIM instances.
   ******************************************************************************
   * @attention
   *
@@ -32,11 +32,19 @@ TIM_HandleTypeDef htim8;
 /* TIM1 init function */
 void MX_TIM1_Init(void)
 {
+
+  /* USER CODE BEGIN TIM1_Init 0 */
+
+  /* USER CODE END TIM1_Init 0 */
+
   TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
   TIM_OC_InitTypeDef sConfigOC = {0};
   TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig = {0};
 
+  /* USER CODE BEGIN TIM1_Init 1 */
+
+  /* USER CODE END TIM1_Init 1 */
   htim1.Instance = TIM1;
   htim1.Init.Prescaler = 180-1;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
@@ -85,16 +93,27 @@ void MX_TIM1_Init(void)
   {
     Error_Handler();
   }
+  /* USER CODE BEGIN TIM1_Init 2 */
+
+  /* USER CODE END TIM1_Init 2 */
   HAL_TIM_MspPostInit(&htim1);
 
 }
 /* TIM2 init function */
 void MX_TIM2_Init(void)
 {
+
+  /* USER CODE BEGIN TIM2_Init 0 */
+
+  /* USER CODE END TIM2_Init 0 */
+
   TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
   TIM_OC_InitTypeDef sConfigOC = {0};
 
+  /* USER CODE BEGIN TIM2_Init 1 */
+
+  /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
   htim2.Init.Prescaler = 90-1;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
@@ -128,16 +147,26 @@ void MX_TIM2_Init(void)
   {
     Error_Handler();
   }
+  /* USER CODE BEGIN TIM2_Init 2 */
+
+  /* USER CODE END TIM2_Init 2 */
   HAL_TIM_MspPostInit(&htim2);
 
 }
 /* TIM3 init function */
 void MX_TIM3_Init(void)
 {
+
+  /* USER CODE BEGIN TIM3_Init 0 */
+
+  /* USER CODE END TIM3_Init 0 */
+
   TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
-  TIM_OC_InitTypeDef sConfigOC = {0};
 
+  /* USER CODE BEGIN TIM3_Init 1 */
+
+  /* USER CODE END TIM3_Init 1 */
   htim3.Instance = TIM3;
   htim3.Init.Prescaler = 90-1;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
@@ -153,38 +182,32 @@ void MX_TIM3_Init(void)
   {
     Error_Handler();
   }
-  if (HAL_TIM_PWM_Init(&htim3) != HAL_OK)
-  {
-    Error_Handler();
-  }
   sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
   if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
   {
     Error_Handler();
   }
-  sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 1500;
-  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  HAL_TIM_MspPostInit(&htim3);
+  /* USER CODE BEGIN TIM3_Init 2 */
+
+  /* USER CODE END TIM3_Init 2 */
 
 }
 /* TIM8 init function */
 void MX_TIM8_Init(void)
 {
+
+  /* USER CODE BEGIN TIM8_Init 0 */
+
+  /* USER CODE END TIM8_Init 0 */
+
   TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
   TIM_IC_InitTypeDef sConfigIC = {0};
 
+  /* USER CODE BEGIN TIM8_Init 1 */
+
+  /* USER CODE END TIM8_Init 1 */
   htim8.Instance = TIM8;
   htim8.Init.Prescaler = 90-1;
   htim8.Init.CounterMode = TIM_COUNTERMODE_UP;
@@ -219,6 +242,9 @@ void MX_TIM8_Init(void)
   {
     Error_Handler();
   }
+  /* USER CODE BEGIN TIM8_Init 2 */
+
+  /* USER CODE END TIM8_Init 2 */
 
 }
 
@@ -336,28 +362,6 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef* timHandle)
   /* USER CODE BEGIN TIM2_MspPostInit 1 */
 
   /* USER CODE END TIM2_MspPostInit 1 */
-  }
-  else if(timHandle->Instance==TIM3)
-  {
-  /* USER CODE BEGIN TIM3_MspPostInit 0 */
-
-  /* USER CODE END TIM3_MspPostInit 0 */
-
-    __HAL_RCC_GPIOC_CLK_ENABLE();
-    /**TIM3 GPIO Configuration
-    PC6     ------> TIM3_CH1
-    PC7     ------> TIM3_CH2
-    */
-    GPIO_InitStruct.Pin = Wheel_TIM3_CH1_Pin|Wheel_TIM3_CH2_Pin;
-    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    GPIO_InitStruct.Alternate = GPIO_AF2_TIM3;
-    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-
-  /* USER CODE BEGIN TIM3_MspPostInit 1 */
-
-  /* USER CODE END TIM3_MspPostInit 1 */
   }
 
 }
