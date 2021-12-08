@@ -39,9 +39,11 @@
 #include "mpu6050.h"
 #include "bd25l.h"
 #include "X2_6010S.h"
-#include "wheelchair.h"
+//#include "wheelchair.h"
 #include "PID.h"
 #include "Sabertooth.h"
+#include "joystick.h"
+#include "differentialDrive.h"
 
 /* USER CODE END Includes */
 
@@ -103,15 +105,13 @@ Button_TypeDef button3 =
 //Joystick/ADC
 int16_t adc_rawData[8];
 uint32_t prev_adc_time = 0;
-int tempJoyRawDataX, tempJoyRawDataY;
+JoystickHandle processed_hjoystick = {0};
+JoystickHandle raw_hJoystick = {0};
 
 //Wheelchair Base wheel control
+differentialDrive_Handler differential_drive_handler;
 Sabertooth_Handler sabertooth_handler;
 uint8_t motor_receive_buf[9];
-WheelSpeed baseWheelSpeed =
-
-{ .accel_loop = 100.0f, .decel_loop = 50.0f, .left_speed_step = 5,
-		.right_speed_step = 5 };
 const float base_linSpeedLevel[3] =
 { 200.0f, 300.0f, 400.0f };
 const float base_angSpeedLevel[3] =
@@ -247,10 +247,10 @@ int main(void)
   MX_USART6_UART_Init();
   /* USER CODE BEGIN 2 */
 	//Initialize hardware communication
-	joystick_Init();
 	ADC_Init();
 	ADC_DataRequest();
 	ENCODER_Init();
+	differentialDriveInit(&differential_drive_handler, FREQUENCY);
 	MotorInit(&sabertooth_handler, 128, &huart6);
 
 //	uint32_t state_count = HAL_GetTick();
@@ -481,9 +481,8 @@ int main(void)
 					&& lifting_mode == LANDING)
 			{
 				//Stop the base wheel completely
-				baseWheelSpeed.cur_r = 0;
-				baseWheelSpeed.cur_l = 0;
-				baseMotorCommand();
+				MotorThrottle(&sabertooth_handler, 1, 0);
+				MotorThrottle(&sabertooth_handler, 2, 0);
 
 				//Disengage the motor brake
 				emBrakeMotor(1);
@@ -532,8 +531,9 @@ int main(void)
 			{
 				HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
 				HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);
-				wheel_Control(&baseWheelSpeed);
-				baseMotorCommand();
+//				wheel_Control(&baseWheelSpeed);
+				computeSpeed(&differential_drive_handler, processed_hjoystick.x, processed_hjoystick.y);
+//				baseMotorCommand();
 				front_touchdown = false;
 				back_touchdown = false;
 				climb_first_iteration = true;
@@ -703,9 +703,7 @@ int main(void)
     /* USER CODE BEGIN 3 */
 
 	}
-	HAL_TIM_PWM_Stop(&MOTOR_TIM, TIM_CHANNEL_1);
-	HAL_TIM_PWM_Stop(&MOTOR_TIM, TIM_CHANNEL_2);
-	brakeMotor(&backMotor, 1);
+	brakeMotor(&rearMotor, 1);
 	brakeMotor(&backMotor, 1);
   /* USER CODE END 3 */
 }
@@ -769,8 +767,9 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 		if (HAL_GetTick() - prev_adc_time > 1)
 		{
 			ADC_Read(adc_rawData);
-			tempJoyRawDataX = adc_rawData[2];
-			tempJoyRawDataY = adc_rawData[1];
+			raw_hJoystick.x = adc_rawData[2];
+			raw_hJoystick.y = adc_rawData[1];
+
 			prev_adc_time = HAL_GetTick();
 		}
 	}
@@ -866,12 +865,6 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 						- 4096 * FRONT_GEAR_RATIO;
 		}
 	}
-}
-
-void baseMotorCommand(void)
-{
-	MOTOR_TIM.Instance->RIGHT_MOTOR_CHANNEL = (int) baseWheelSpeed.cur_r + 1500;
-	MOTOR_TIM.Instance->LEFT_MOTOR_CHANNEL = (int) baseWheelSpeed.cur_l + 1500;
 }
 
 //Hub motor move forward  by preset dist
@@ -1067,9 +1060,8 @@ void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
 	/* User can add his own implementation to report the HAL error return state */
-	HAL_TIM_PWM_Stop(&MOTOR_TIM, TIM_CHANNEL_1);
-	HAL_TIM_PWM_Stop(&MOTOR_TIM, TIM_CHANNEL_2);
-	brakeMotor(&backMotor, 1);
+	MotorShutdown(&sabertooth_handler);
+	brakeMotor(&rearMotor, 1);
 	brakeMotor(&backMotor, 1);
   /* USER CODE END Error_Handler_Debug */
 }

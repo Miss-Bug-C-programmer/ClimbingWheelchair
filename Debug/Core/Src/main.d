@@ -36,8 +36,8 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
  ../Core/Inc/gpio.h ../Core/Inc/adc.h ../Core/Inc/encoder.h \
  ../Core/Inc/can.h ../Core/Inc/button.h ../Core/Inc/mpu6050.h \
  ../Core/Inc/bd25l.h ../Core/Inc/gpio.h ../Core/Inc/tim.h \
- ../Core/Inc/X2_6010S.h ../Core/Inc/wheelchair.h ../Core/Inc/X2_6010S.h \
- ../Core/Inc/PID.h ../Core/Inc/Sabertooth.h
+ ../Core/Inc/X2_6010S.h ../Core/Inc/PID.h ../Core/Inc/Sabertooth.h \
+ ../Core/Inc/joystick.h ../Core/Inc/differentialDrive.h
 
 ../Core/Inc/main.h:
 
@@ -139,10 +139,10 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
 
 ../Core/Inc/X2_6010S.h:
 
-../Core/Inc/wheelchair.h:
-
-../Core/Inc/X2_6010S.h:
-
 ../Core/Inc/PID.h:
 
 ../Core/Inc/Sabertooth.h:
+
+../Core/Inc/joystick.h:
+
+../Core/Inc/differentialDrive.h:

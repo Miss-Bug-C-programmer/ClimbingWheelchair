@@ -10,7 +10,6 @@
 #define INC_DIFFERENTIALDRIVE_H_
 
 #define COMPUTERANGE 18000
-#define FREQUENCY
 
 #include <stdlib.h>
 #include <stdint.h>
