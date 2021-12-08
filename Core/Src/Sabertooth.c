@@ -6,26 +6,27 @@
  */
 
 #include "Sabertooth.h"
+#include "string.h"
 
 #define MAX(x,y) 	(((x) > (y)) ? (x) : (y))
 #define MIN(x,y) 	(((x) < (y)) ? (x) : (y))
 
 //Sabertooth Basic Command Number
-#define SABERTOOTH_SET			40	/*!< Set a value on the motor driver >*/
-#define SABERTOOTH_GET			41	/*!< Get a value on the motor driver >*/
-#define SABERTOOTH_REPLY		41	/*!< Reply from motor driver >*/
+#define SABERTOOTH_SET			0x28	/*!< Set a value on the motor driver >*/
+#define SABERTOOTH_GET			0x29	/*!< Get a value on the motor driver >*/
+#define SABERTOOTH_REPLY		0x49	/*!< Reply from motor driver >*/
 
 //SET Command Value
-#define SET_VALUE				0	/*!< Set the value >*/
-#define SET_KEEP_ALIVE			16	/*!< A keep-alive will reset the serial timeout without taking any action. >*/
-#define SET_SHUTDOWN			32	/*!< Set the value >*/
-#define SET_TIMEOUT				64	/*!< Set the value >*/
+#define SET_VALUE				0x00	/*!< Set the value >*/
+#define SET_KEEP_ALIVE			0x10	/*!< A keep-alive will reset the serial timeout without taking any action. >*/
+#define SET_SHUTDOWN			0x20	/*!< Set the value >*/
+#define SET_TIMEOUT				0x30	/*!< Set the value >*/
 
 //GET Command Value
-#define GET_DUTY_CYCLE			0	/*!< Get the value >*/
-#define GET_BATTERY				16	/*!< Get the battery voltage, in tenth >*/
-#define GET_CURRENT				32	/*!< Get the current, in amps >*/
-#define GET_TEMP				64	/*!< Get the temp, in celcius >*/
+#define GET_DUTY_CYCLE			0x00	/*!< Get the value >*/
+#define GET_BATTERY				0x10	/*!< Get the battery voltage, in tenth >*/
+#define GET_CURRENT				0x20	/*!< Get the current, in amps >*/
+#define GET_TEMP				0x30	/*!< Get the temp, in celcius >*/
 
 //Desired output type from the motor driver
 #define TYPE_MOTOR				(uint8_t)'M'
@@ -150,7 +151,8 @@ void MotorTimeout(Sabertooth_Handler *st_handler, int16_t value) {
 }
 
 void MotorReadBattery(Sabertooth_Handler *st_handler) {
-	writeSabertoothGetCommand(st_handler, GET_BATTERY, TYPE_MOTOR, TARGET_BOTH);
+	writeSabertoothGetCommand(st_handler, GET_BATTERY, TYPE_MOTOR, TARGET_1);
+	writeSabertoothGetCommand(st_handler, GET_BATTERY, TYPE_MOTOR, TARGET_2);
 }
 
 void MotorReadCurrent(Sabertooth_Handler *st_handler, uint8_t motor) {
@@ -180,16 +182,17 @@ void MotorProcessReply(Sabertooth_Handler *st_handler, uint8_t *receive_buf, uin
 		return;
 	//Checksum to make sure data receive is in the corrent form
 	uint8_t dataChecksum = 0;
-	dataChecksum = receive_buf[IDX_ADDRESS] + receive_buf[IDX_COMMAND] + receive_buf[IDX_COMMAND_VALUE];
+	dataChecksum = (receive_buf[IDX_ADDRESS] + receive_buf[IDX_COMMAND] + receive_buf[IDX_COMMAND_VALUE]) & 127;
 	if (dataChecksum != receive_buf[IDX_CHECKSUM_1])
 		return;
 	dataChecksum = 0;
 	for (int i = 4; i < size - 1; i++)
 		dataChecksum += receive_buf[i];
+	dataChecksum &= 127;
 	if (dataChecksum != receive_buf[IDX_CHECKSUM_2(SABERTOOTH_REPLY)])
 		return;
 
-	int16_t reply_value = (receive_buf[IDX_VALUE_LOW] & 0x0011) + ((receive_buf[IDX_VALUE_HIGH] << 8) & 0x1100);
+	int16_t reply_value = (receive_buf[IDX_VALUE_LOW] & 0x7F) + ((receive_buf[IDX_VALUE_HIGH] & 0x7F) << 7);
 
 	//Create a pointer to hold the motor handler
 	Sabertooth_Motor_Handler* pMotor;
@@ -244,11 +247,13 @@ static void writeSabertoothCommand(Sabertooth_Handler *st_handler, uint8_t comma
 	}
 	send_buf[IDX_CHECKSUM_2(command)] = dataChecksum & 127;
 	if (command == SABERTOOTH_SET) {
-		HAL_UART_Transmit_DMA(st_handler->huart, send_buf, SEND_BUF_SIZE_SET);
+		HAL_UART_Transmit(st_handler->huart, send_buf, SEND_BUF_SIZE_SET,1);
 	} else if (command == SABERTOOTH_GET) {
-		HAL_UART_Transmit_DMA(st_handler->huart, send_buf, SEND_BUF_SIZE_GET);
-		motor_need_receive = 1;
-		//TODO: Need to check if Transmit Synchronously with RX
+		HAL_UART_Transmit(st_handler->huart, send_buf, SEND_BUF_SIZE_GET,1);
+		uint32_t t = HAL_GetTick();
+		while(HAL_UART_Receive_DMA(st_handler->huart, motor_receive_buf, 9) != HAL_OK
+				|| HAL_GetTick() - t > 5000);
+
 	}
 }
 

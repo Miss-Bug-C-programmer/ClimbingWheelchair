@@ -25,7 +25,7 @@ typedef struct{
   Sabertooth_Motor_Handler motor2;
 }Sabertooth_Handler;
 
-extern uint8_t motor_receive_buf[8];
+extern uint8_t motor_receive_buf[9];
 extern uint8_t motor_need_receive;		//A flag to indicate need to call DMA_RX
 
 void MotorInit(Sabertooth_Handler* st_handler, uint8_t address, UART_HandleTypeDef* huart);
@@ -92,6 +92,6 @@ void MotorReadTemperature(Sabertooth_Handler* st_handler, uint8_t motor);
  */
 void MotorReadDutyCycle(Sabertooth_Handler* st_handler, uint8_t motor);
 
-
+void MotorProcessReply(Sabertooth_Handler *st_handler, uint8_t *receive_buf, uint8_t size);
 
 #endif /* INC_SABERTOOTH_H_ */

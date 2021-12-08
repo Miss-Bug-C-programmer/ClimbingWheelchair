@@ -41,6 +41,7 @@
 #include "X2_6010S.h"
 #include "wheelchair.h"
 #include "PID.h"
+#include "Sabertooth.h"
 
 /* USER CODE END Includes */
 
@@ -249,6 +250,7 @@ int main(void)
 	ADC_Init();
 	ADC_DataRequest();
 	ENCODER_Init();
+	MotorInit(&sabertooth_handler, 128, &huart6);
 
 //	uint32_t state_count = HAL_GetTick();
 //	while (MPU6050_Init(&hi2c1) == 1)
@@ -256,15 +258,6 @@ int main(void)
 //		if (HAL_GetTick() - state_count > 5000)
 //			Error_Handler();
 //	}
-
-	//Start base wheel PWM pin
-	wheelSpeedControl_Init(&baseWheelSpeed, base_linSpeedLevel[base_speedLevel],
-			base_angSpeedLevel[base_speedLevel]);
-	HAL_TIM_Base_Start(&MOTOR_TIM);
-	HAL_TIM_PWM_Start(&MOTOR_TIM, TIM_CHANNEL_1);
-	HAL_TIM_PWM_Start(&MOTOR_TIM, TIM_CHANNEL_2);
-	MOTOR_TIM.Instance->RIGHT_MOTOR_CHANNEL = 1500;
-	MOTOR_TIM.Instance->LEFT_MOTOR_CHANNEL = 1500;
 
 //	//Initialize rear and back motor
 	bd25l_Init(&rearMotor);
@@ -310,56 +303,9 @@ int main(void)
 //	ENCODER_Set_ZeroPosition(&encoderBack);
 //	ENCODER_Set_ZeroPosition(&encoderFront);
 	HAL_Delay(500);
-	//debug variable
-//	uint32_t debug_prev_time = HAL_GetTick();
-//	uint8_t led_status = 0;
-	//  float speed = 0;
+
 	while (1)
 	{
-		//Code to debug with blinking LED
-//		if (HAL_GetTick() - debug_prev_time >= 1000)
-//		{
-//			if (led_status == 0)
-//			{
-//				//	      count++;
-//				HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
-//				led_status = 1;
-//			}
-//			else if (led_status == 1)
-//			{
-//				HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
-//				led_status = 0;
-//			}
-//			debug_prev_time = HAL_GetTick();
-//		}
-
-		//Debug BD25L
-		//      if(speed>100){
-		//	bd25l_Brake(&rearMotor);
-		//	bd25l_Brake(&backMotor);
-		//	speed=0;
-		//	HAL_Delay(5000);
-		//      }
-		//      if (speed<=100){
-		//	  runMotor(&rearMotor, speed, 0);
-		//	  runMotor(&backMotor, speed, 0);
-		//	  speed+=10;
-		//	  HAL_Delay(1000);
-		//      }
-
-		//Debug Limit switch
-		//      rearLS1 = HAL_GPIO_ReadPin(LimitSW1_GPIO_Port, LimitSW1_Pin);
-		//      rearLS2 = HAL_GPIO_ReadPin(LimitSW2_GPIO_Port, LimitSW2_Pin);
-		//      backLS1 = HAL_GPIO_ReadPin(LimitSW3_GPIO_Port, LimitSW3_Pin);
-		//      backLS2 = HAL_GPIO_ReadPin(LimitSW4_GPIO_Port, LimitSW4_Pin);
-		//      HAL_Delay(500);
-
-		//      //Test speed commands on bse motor
-		//      MOTOR_TIM.Instance->RIGHT_MOTOR_CHANNEL -= 50;
-		//      MOTOR_TIM.Instance->LEFT_MOTOR_CHANNEL -= 50;
-		//      runMotor(&backMotor, 100, 1);
-
-		//      runMotor(&backMotor, speed++, 1);
 		//Loop should execute once every 1 tick
 		if (HAL_GetTick() - prev_time >= 1)
 		{
@@ -422,22 +368,21 @@ int main(void)
 //				motor_speed += 50;
 //				HAL_Delay(500);
 //			}
-			if (button3.state == GPIO_PIN_SET){
-				motor_speed += 50;
-				HAL_Delay(5000);
-			}
-
-
-			if (button1.state == GPIO_PIN_SET)
-				MOTOR_TIM.Instance->LEFT_MOTOR_CHANNEL = motor_speed + 1500;
-			else if (button1.state == GPIO_PIN_RESET)
-				MOTOR_TIM.Instance->LEFT_MOTOR_CHANNEL = 1500;
-
-			if (button2.state == GPIO_PIN_SET)
-				MOTOR_TIM.Instance->RIGHT_MOTOR_CHANNEL = motor_speed + 1500;
-			else if (button2.state == GPIO_PIN_RESET)
-				MOTOR_TIM.Instance->RIGHT_MOTOR_CHANNEL = 1500;
-\
+//			if (button3.state == GPIO_PIN_SET){
+//				motor_speed += 50;
+//				HAL_Delay(5000);
+//			}
+//
+//			if (button1.state == GPIO_PIN_SET)
+//				MOTOR_TIM.Instance->LEFT_MOTOR_CHANNEL = motor_speed + 1500;
+//			else if (button1.state == GPIO_PIN_RESET)
+//				MOTOR_TIM.Instance->LEFT_MOTOR_CHANNEL = 1500;
+//
+//			if (button2.state == GPIO_PIN_SET)
+//				MOTOR_TIM.Instance->RIGHT_MOTOR_CHANNEL = motor_speed + 1500;
+//			else if (button2.state == GPIO_PIN_RESET)
+//				MOTOR_TIM.Instance->RIGHT_MOTOR_CHANNEL = 1500;
+//\
 
 			//!Must not comment the following section
 			//Deadzone of climbing motor, force zero to avoid noise

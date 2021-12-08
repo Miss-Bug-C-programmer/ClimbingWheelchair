@@ -186,7 +186,7 @@ int motor_speed = 0;
 
 //Test sabertooth API
 uint8_t motor_need_receive = 0;
-uint8_t motor_receive_buf[8] = {0};
+uint8_t motor_receive_buf[9] = {0};
 Sabertooth_Handler sabertooth_handler;
 
 
@@ -287,6 +287,7 @@ int main(void)
 //	uint32_t debug_prev_time = HAL_GetTick();
 //	uint8_t led_status = 0;
 	//  float speed = 0;
+//	MotorReadDutyCycle(&sabertooth_handler, 1);
 	while (1)
 	{
 		//Code to debug with blinking LED
@@ -334,6 +335,7 @@ int main(void)
 
 		//      runMotor(&backMotor, speed++, 1);
 		//Loop should execute once every 1 tick
+
 		if (HAL_GetTick() - prev_time >= 1)
 		{
 			ADC_DataRequest();
@@ -395,22 +397,36 @@ int main(void)
 //				motor_speed += 50;
 //				HAL_Delay(500);
 //			}
-			if (button3.state == GPIO_PIN_SET){
-				motor_speed += 50;
-				HAL_Delay(5000);
-			}
+//			if (button3.state == GPIO_PIN_SET){
+//				motor_speed += 50;
+//				HAL_Delay(500);
+//			}
+//
+//			if (button1.state == GPIO_PIN_SET)
+//				MotorThrottle(&sabertooth_handler, 1, motor_speed);
+//			else if (button1.state == GPIO_PIN_RESET)
+//				MotorThrottle(&sabertooth_handler, 1, 0);
+//
+//			if (button2.state == GPIO_PIN_SET){
+//				HAL_Delay(500);
+//				if (state_count == 0){
+//					MotorShutdown(&sabertooth_handler);
+//					state_count =1;
+//				}else if(state_count == 1)
+//				{
+//					MotorStartup(&sabertooth_handler);
+//					state_count =0;
+//				}
+//
+//			}
+////				MotorShutdown(&sabertooth_handler);
+//			else if (button2.state == GPIO_PIN_RESET)
+//				MotorThrottle(&sabertooth_handler, 2, 0);
 
-
-			if (button1.state == GPIO_PIN_SET)
-				MotorThrottle(&sabertooth_handler, 1, 2047);
-			else if (button1.state == GPIO_PIN_RESET)
-				MotorThrottle(&sabertooth_handler, 1, 0);
-
-			if (button2.state == GPIO_PIN_SET)
-				MotorThrottle(&sabertooth_handler, 2, 2047);
-			else if (button2.state == GPIO_PIN_RESET)
-				MotorThrottle(&sabertooth_handler, 2, 2047);
-
+			MotorReadBattery(&sabertooth_handler);
+			HAL_Delay(1000);
+//
+//			HAL_Delay(500);
 //			//!Must not comment the following section
 //			//Deadzone of climbing motor, force zero to avoid noise
 //			if (fabs(speed[FRONT_INDEX]) < 5)
@@ -531,12 +547,12 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 	}
 }
 
-void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){
-	if (huart->Instance == USART6){
-		if(motor_need_receive == 1)
-			HAL_UART_Receive_DMA(huart, motor_receive_buf, sizeof(motor_receive_buf));
-	}
-}
+//void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){
+//	if (huart->Instance == USART6){
+//		if(motor_need_receive == 1)
+//			HAL_UART_Receive_DMA(huart, motor_receive_buf, sizeof(motor_receive_buf));
+//	}
+//}
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
@@ -569,10 +585,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 	//Motor drivercallback
 	if (huart->Instance == USART6)
 	{
-		if(motor_need_receive){
-			MotorProcessReply(&sabertooth_handler, &motor_need_receive, sizeof(motor_need_receive));
-			motor_need_receive = 0;
-		}
+			MotorProcessReply(&sabertooth_handler, motor_receive_buf, sizeof(motor_receive_buf));
 
 	}
 
@@ -819,6 +832,15 @@ bool in_climb_process(int front_enc, int back_enc)
 	return is_lifting;
 
 }
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
+{
+  /* Prevent unused argument(s) compilation warning */
+  UNUSED(huart);
+  /* NOTE: This function should not be modified, when the callback is needed,
+           the HAL_UART_ErrorCallback could be implemented in the user file
+   */
+}
+
 /* USER CODE END 4 */
 
 /**
