@@ -41,6 +41,7 @@
 #include "X2_6010S.h"
 #include "wheelchair.h"
 #include "PID.h"
+#include "Sabertooth.h"
 
 /* USER CODE END Includes */
 
@@ -105,6 +106,8 @@ uint32_t prev_adc_time = 0;
 int tempJoyRawDataX, tempJoyRawDataY;
 
 //Wheelchair Base wheel control
+Sabertooth_Handler sabertooth_handler;
+uint8_t motor_receive_buf[9];
 WheelSpeed baseWheelSpeed =
 
 { .accel_loop = 100.0f, .decel_loop = 50.0f, .left_speed_step = 5,
@@ -248,6 +251,7 @@ int main(void)
 	ADC_Init();
 	ADC_DataRequest();
 	ENCODER_Init();
+	MotorInit(&sabertooth_handler, 128, &huart6);
 
 //	uint32_t state_count = HAL_GetTick();
 //	while (MPU6050_Init(&hi2c1) == 1)
@@ -256,14 +260,6 @@ int main(void)
 //			Error_Handler();
 //	}
 
-	//Start base wheel PWM pin
-	wheelSpeedControl_Init(&baseWheelSpeed, base_linSpeedLevel[base_speedLevel],
-			base_angSpeedLevel[base_speedLevel]);
-	HAL_TIM_Base_Start(&MOTOR_TIM);
-	HAL_TIM_PWM_Start(&MOTOR_TIM, TIM_CHANNEL_1);
-	HAL_TIM_PWM_Start(&MOTOR_TIM, TIM_CHANNEL_2);
-	MOTOR_TIM.Instance->RIGHT_MOTOR_CHANNEL = 1500;
-	MOTOR_TIM.Instance->LEFT_MOTOR_CHANNEL = 1500;
 
 //	//Initialize rear and back motor
 	bd25l_Init(&rearMotor);
@@ -784,12 +780,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 	}
 }
 
-//void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){
-//	if (huart->Instance == USART3){
-//
-//	}
-//}
-
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
 	//Hub Encoder callback
@@ -817,6 +807,11 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 						+ (receive_buf[10]);
 			}
 		}
+	}
+	//Sabertooth Callback
+	if (huart->Instance == USART6)
+	{
+		MotorProcessReply(&sabertooth_handler, motor_receive_buf, sizeof(motor_receive_buf));
 	}
 
 }

@@ -6,6 +6,7 @@
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
 ../Core/Src/PID.c \
+../Core/Src/Sabertooth.c \
 ../Core/Src/X2_6010S.c \
 ../Core/Src/adc.c \
 ../Core/Src/battery.c \
@@ -33,6 +34,7 @@ C_SRCS += \
 
 OBJS += \
 ./Core/Src/PID.o \
+./Core/Src/Sabertooth.o \
 ./Core/Src/X2_6010S.o \
 ./Core/Src/adc.o \
 ./Core/Src/battery.o \
@@ -60,6 +62,7 @@ OBJS += \
 
 C_DEPS += \
 ./Core/Src/PID.d \
+./Core/Src/Sabertooth.d \
 ./Core/Src/X2_6010S.d \
 ./Core/Src/adc.d \
 ./Core/Src/battery.d \
