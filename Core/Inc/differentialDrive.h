@@ -11,12 +11,22 @@
 
 #define COMPUTERANGE 18000
 
+
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
+#include "stm32f4xx.h"
 //user need to input the following
+
+typedef enum{
+	GEAR1 = 40,
+	GEAR2 = 60,
+	GEAR3 = 80,
+	GEAR4 = 100,
+}Gear_Level;
+
 typedef struct{
 	float min_vel; 			/*!< Motor minimum velocity >*/
 	float max_vel; 			/*!< Motor maximum speed >*/
@@ -29,11 +39,7 @@ typedef struct{
 typedef struct{
 	float vel;
 	float prev_vel;
-	uint32_t prev_acc_t; 	/*!< Used to calculate acceleration>*/
-	float acc;
-	float prev_acc;
-	uint32_t prev_jerk_t;	/*!< Used to calculate acceleration>*/
-	float jerk;
+	uint32_t prev_t;
 }motorState;
 
 typedef struct{
@@ -46,16 +52,18 @@ typedef struct{
                 		Allowable range: (0..+COMPUTERANGE)>*/
 	motorState left_motor_state;	/*!< Motor (left) state >*/
 	motorState right_motor_state;	/*!< Motor (right) state >*/
-	uint32_t frequency;
+	uint32_t frequency; 			/*!< To smoothen output >*/
 }differentialDrive_Handler;
 
-
-
-
+//User configurable output speed characteristic
+extern speedConfig speed_config;
 
 void differentialDriveInit(differentialDrive_Handler* dd_handler, uint32_t frequency);
-void computeSpeed(differentialDrive_Handler* dd_handler, int XValue, int YValue);
+void speedConfiguration(speedConfig* speed_config);
+void computeSpeed(differentialDrive_Handler* dd_handler, int XValue, int YValue, Gear_Level gear_level);
+void speedLimiter(motorState* motor_state, uint32_t frequency, float velocity);
 
+extern differentialDrive_Handler differential_drive_handler;
 
 
 #endif /* INC_DIFFERENTIALDRIVE_H_ */

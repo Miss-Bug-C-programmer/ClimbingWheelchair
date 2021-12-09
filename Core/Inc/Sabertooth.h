@@ -12,6 +12,15 @@
 #include <stdint.h>
 #include <stm32f4xx.h>
 
+//range that acceptable by sabertooth for value byte
+#define SABERTOOTH_MIN_ALLOWABLE_VALUE				-(0x07FF)
+#define SABERTOOTH_MAX_ALLOWABLE_VALUE				+(0x07FF)
+
+//Targeted output number associated with output type
+#define TARGET_1				1
+#define TARGET_2				2
+#define TARGET_BOTH				(uint8_t)'*'
+
 typedef struct{
 	int16_t duty_cycle;
 	int16_t battery;

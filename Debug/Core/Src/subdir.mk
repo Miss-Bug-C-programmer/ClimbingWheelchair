@@ -5,6 +5,7 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
+../Core/Src/DifferentialDrivetoSabertooth.c \
 ../Core/Src/PID.c \
 ../Core/Src/Sabertooth.c \
 ../Core/Src/X2_6010S.c \
@@ -33,6 +34,7 @@ C_SRCS += \
 ../Core/Src/wheelchair.c 
 
 OBJS += \
+./Core/Src/DifferentialDrivetoSabertooth.o \
 ./Core/Src/PID.o \
 ./Core/Src/Sabertooth.o \
 ./Core/Src/X2_6010S.o \
@@ -61,6 +63,7 @@ OBJS += \
 ./Core/Src/wheelchair.o 
 
 C_DEPS += \
+./Core/Src/DifferentialDrivetoSabertooth.d \
 ./Core/Src/PID.d \
 ./Core/Src/Sabertooth.d \
 ./Core/Src/X2_6010S.d \

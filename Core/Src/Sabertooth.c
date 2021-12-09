@@ -35,17 +35,15 @@
 #define TYPE_AUXILIARY			(uint8_t)'Q'
 
 //Targeted output number associated with output type
-#define TARGET_1				1
-#define TARGET_2				2
-#define TARGET_BOTH				(uint8_t)'*'
+//#define TARGET_1				2
+//#define TARGET_2				1
+//#define TARGET_BOTH				(uint8_t)'*'
 
 //Use to indicate motor state
 #define MOTOR_SHUTDOWN			1
 #define MOTOR_STARTUP			0
 
-//range that acceptable by sabertooth for value byte
-#define MIN_ALLOWABLE_VALUE				-2047
-#define MAX_ALLOWABLE_VALUE				+2047
+
 
 //Send and Receive byte array index
 #define IDX_ADDRESS 			0
@@ -127,8 +125,12 @@ void MotorInit(Sabertooth_Handler* st_handler, uint8_t address, UART_HandleTypeD
 void MotorThrottle(Sabertooth_Handler *st_handler, uint8_t motor, int16_t power) {
 	if (motor < 1 || motor > 2)
 		return;
-	clamp(power, MIN_ALLOWABLE_VALUE, MAX_ALLOWABLE_VALUE);
+	clamp(power, SABERTOOTH_MIN_ALLOWABLE_VALUE, SABERTOOTH_MAX_ALLOWABLE_VALUE);
 	uint8_t target_number = (motor == 1) ? TARGET_1 : TARGET_2;
+	if(target_number == 1)
+		st_handler->motor1.duty_cycle = power;
+	else
+		st_handler->motor2.duty_cycle = power;
 	writeSabertoothSetCommand(st_handler, SET_VALUE, TYPE_MOTOR, target_number, power);
 }
 
@@ -146,7 +148,7 @@ void MotorStartup(Sabertooth_Handler *st_handler) {
 }
 
 void MotorTimeout(Sabertooth_Handler *st_handler, int16_t value) {
-	clamp(value, MIN_ALLOWABLE_VALUE, MAX_ALLOWABLE_VALUE);
+	clamp(value, SABERTOOTH_MIN_ALLOWABLE_VALUE, SABERTOOTH_MAX_ALLOWABLE_VALUE);
 	writeSabertoothSetCommand(st_handler, SET_VALUE, TYPE_MOTOR, TARGET_BOTH, value);
 }
 
