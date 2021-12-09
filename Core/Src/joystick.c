@@ -10,6 +10,9 @@
 #include <stdlib.h>
 #define EXPONENTIAL_ALPHA 0.85
 
+#define MAX(x,y) (((x) > (y)) ? (x) : (y))
+#define MIN(x,y) (((x) < (y)) ? (x) : (y))
+
 static const int JoystickCenterX = 32000;
 static const int JoystickCenterY = 32000;
 static const int JoystickMagnitudeMax = 18000;
@@ -17,10 +20,28 @@ static const int JoystickMagnitudeMax = 18000;
 static const float JoyForwardAngle = 1.57;
 static const float JoyLeftTurnAngle = 3.142;
 static const float JoyRightTurnAngle = 0;
-static const float JoyForwardAngleDeadzone = 0.3;
-static const float JoyTurnAngleDeadzone = 0.2;
+static const float JoyTurnAngleDeadzone = 0.05;
+static const float JoyForwardAngleDeadzone = 0.2;
 
 static JoystickHandle prev_joystick = {.x = -1, .y = -1};
+
+/*********************************************************************
+ * @fn      		- clamp
+ *
+ * @brief          	- Clamp x between min and max
+ *
+ * @param[x]     		- input value
+ * @param[min]     		- min value allowed
+ * @param[max]     		- max value allowed
+ *
+ * @return            - None
+ *
+ * @Note              -
+ */
+static int clamp(int x, int min, int max)
+{
+  return MIN(MAX(min, x), max);
+}
 
 /*********************************************************************
  * @fn      		  - calculatePos
@@ -31,56 +52,50 @@ static JoystickHandle prev_joystick = {.x = -1, .y = -1};
  *
  * @Note              -
  */
-void calculatePos(void)
+void calculatePos(JoystickHandle* joystick_handler)
 {
 	double angle;
 
 	//Normalize joystick input
 	//Depends on type of joystick use
-	raw_hJoystick.x = (raw_hJoystick.x < 0)? raw_hJoystick.x + JoystickCenterX : raw_hJoystick.x - JoystickCenterX;
-	raw_hJoystick.y = (raw_hJoystick.y > 0)? JoystickCenterY - raw_hJoystick.y:  -raw_hJoystick.y - JoystickCenterX;
-
-	//Store in processed data for clarity
-	processed_hjoystick.x = raw_hJoystick.x;
-	processed_hjoystick.y = raw_hJoystick.y;
+	joystick_handler->x = (joystick_handler->x < 0)? joystick_handler->x + JoystickCenterX : joystick_handler->x - JoystickCenterX;
+	joystick_handler->y = (joystick_handler->y > 0)? JoystickCenterY - joystick_handler->y:  -joystick_handler->y - JoystickCenterX;
 
 	//return if joystick just initialize
 	if (prev_joystick.x == 0 || prev_joystick.y == 0){
-		prev_joystick.x = processed_hjoystick.x;
-		prev_joystick.y = processed_hjoystick.y;
+		prev_joystick.x = joystick_handler->x;
+		prev_joystick.y = joystick_handler->y;
 		return;
 	}
 
 	//Smoothening joystick reading by using EMA as low pass
-	processed_hjoystick.x = (float)processed_hjoystick.x * EXPONENTIAL_ALPHA + (1.0 - EXPONENTIAL_ALPHA) * (float)prev_joystick.x;
-	processed_hjoystick.y = (float)processed_hjoystick.y * EXPONENTIAL_ALPHA + (1.0 - EXPONENTIAL_ALPHA) * (float)prev_joystick.y;
+	joystick_handler->x = (float)joystick_handler->x * EXPONENTIAL_ALPHA + (1.0 - EXPONENTIAL_ALPHA) * (float)prev_joystick.x;
+	joystick_handler->y = (float)joystick_handler->y * EXPONENTIAL_ALPHA + (1.0 - EXPONENTIAL_ALPHA) * (float)prev_joystick.y;
 
 	// calculate joystick magnitude and angle
-	angle = atan2((double)processed_hjoystick.y, (double)processed_hjoystick.x);
+	angle = atan2((double)joystick_handler->y, (double)joystick_handler->x);
 
 	// limit magnitude
-	if (processed_hjoystick.x > JoystickMagnitudeMax)
-		processed_hjoystick.x = JoystickMagnitudeMax;
-	if (processed_hjoystick.y > JoystickMagnitudeMax)
-		processed_hjoystick.y = JoystickMagnitudeMax;
+	joystick_handler->x = clamp(joystick_handler->x, -JoystickMagnitudeMax, JoystickMagnitudeMax);
+	joystick_handler->y = clamp(joystick_handler->y, -JoystickMagnitudeMax, JoystickMagnitudeMax);
 
-	// filter joystick forward deadzone
+	// filter joystick forward angle deadzone
 	if (angle > JoyForwardAngle - JoyForwardAngleDeadzone
 			&& angle < JoyForwardAngle + JoyForwardAngleDeadzone)
-		processed_hjoystick.x = 0;
+		joystick_handler->x = 0;
 
-	// filter joystick backward deadzone
+	// filter joystick backward angle deadzone
 	if (angle > -(JoyForwardAngle + JoyForwardAngleDeadzone)
 			&& angle < -(JoyForwardAngle - JoyForwardAngleDeadzone))
-		processed_hjoystick.x = 0;
+		joystick_handler->x = 0;
 
 	// filter joystick right turn deadzone
 	if (angle > JoyRightTurnAngle - JoyTurnAngleDeadzone
 			&& angle < JoyRightTurnAngle + JoyTurnAngleDeadzone)
-		processed_hjoystick.y = 0;
+		joystick_handler->y = 0;
 
 	// filter joystick left turn deadzone
 	if (angle > JoyLeftTurnAngle - JoyTurnAngleDeadzone
 			|| angle < -JoyLeftTurnAngle + JoyTurnAngleDeadzone)
-		processed_hjoystick.y = 0;
+		joystick_handler->y = 0;
 }

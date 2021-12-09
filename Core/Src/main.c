@@ -39,8 +39,12 @@
 #include "mpu6050.h"
 #include "bd25l.h"
 #include "X2_6010S.h"
-#include "wheelchair.h"
+//#include "wheelchair.h"
 #include "PID.h"
+#include "Sabertooth.h"
+#include "joystick.h"
+#include "differentialDrive.h"
+#include "DifferentialDrivetoSabertooth.h"
 
 /* USER CODE END Includes */
 
@@ -102,18 +106,20 @@ Button_TypeDef button3 =
 //Joystick/ADC
 int16_t adc_rawData[8];
 uint32_t prev_adc_time = 0;
-int tempJoyRawDataX, tempJoyRawDataY;
+JoystickHandle joystick_handler = {0};
 
 //Wheelchair Base wheel control
-WheelSpeed baseWheelSpeed =
-
-{ .accel_loop = 100.0f, .decel_loop = 50.0f, .left_speed_step = 5,
-		.right_speed_step = 5 };
-const float base_linSpeedLevel[3] =
-{ 200.0f, 300.0f, 400.0f };
-const float base_angSpeedLevel[3] =
-{ 100.0f, 150.0f, 200.0f };
-int base_speedLevel = 0; //change the speed level if need higher speed
+differentialDrive_Handler differential_drive_handler;
+Gear_Level gear_level = GEAR1; //change the speed level if need higher speed
+Sabertooth_Handler sabertooth_handler;
+uint8_t motor_receive_buf[9];
+speedConfig speed_config =
+{
+	.min_vel = -0.4, //gear level/100
+	.max_vel = 0.4,
+	.min_acc = -0.2,
+	.max_acc = 0.2
+};
 
 //Lifting Mode
 //State
@@ -192,8 +198,6 @@ void baseMotorCommand(void);
 bool climbingForward(float dist); //return true if in the process of moving forward
 bool goto_pos(int enc, PID_t pid_t); //return true if still in the process of reaching the position
 bool in_climb_process(int front_enc, int back_enc);
-
-
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -208,7 +212,6 @@ bool in_climb_process(int front_enc, int back_enc);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-//	18.63 18.13 18.81 +19.00 17.95
 
   /* USER CODE END 1 */
 
@@ -241,12 +244,13 @@ int main(void)
   MX_TIM8_Init();
   MX_CAN1_Init();
   MX_SPI1_Init();
+  MX_USART6_UART_Init();
   /* USER CODE BEGIN 2 */
 	//Initialize hardware communication
-	joystick_Init();
 	ADC_Init();
 	ADC_DataRequest();
-	ENCODER_Init();
+
+	differentialDriveInit(&differential_drive_handler, FREQUENCY);
 
 //	uint32_t state_count = HAL_GetTick();
 //	while (MPU6050_Init(&hi2c1) == 1)
@@ -255,24 +259,24 @@ int main(void)
 //			Error_Handler();
 //	}
 
-	//Start base wheel PWM pin
-	wheelSpeedControl_Init(&baseWheelSpeed, base_linSpeedLevel[base_speedLevel],
-			base_angSpeedLevel[base_speedLevel]);
-	HAL_TIM_Base_Start(&MOTOR_TIM);
-	HAL_TIM_PWM_Start(&MOTOR_TIM, TIM_CHANNEL_1);
-	HAL_TIM_PWM_Start(&MOTOR_TIM, TIM_CHANNEL_2);
-	MOTOR_TIM.Instance->RIGHT_MOTOR_CHANNEL = 1500;
-	MOTOR_TIM.Instance->LEFT_MOTOR_CHANNEL = 1500;
+	//Initialize encoder and start rx callback
+	ENCODER_Init();
+	ENCODER_Get_Angle(&encoderBack);
+	ENCODER_Get_Angle(&encoderFront);
+
+	//Initialize base wheel
+	MotorInit(&sabertooth_handler, 128, &huart6);
+	MotorStartup(&sabertooth_handler);
+	MotorStop(&sabertooth_handler);
 
 //	//Initialize rear and back motor
 	bd25l_Init(&rearMotor);
 	bd25l_Init(&backMotor);
 	runMotor(&rearMotor, 0);
 	runMotor(&backMotor, 0);
-	HAL_TIM_IC_Start_IT(&htim8, TIM_CHANNEL_4);
 	emBrakeMotor(0);
 //
-	//Initialize hub motor provided joystick control
+	//Initialize hub motor
 	hubMotor_Init();
 	send_HubMotor(0, 0);
 
@@ -296,68 +300,19 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 	uint32_t prev_time = HAL_GetTick();
-	ENCODER_Get_Angle(&encoderBack);
-	ENCODER_Get_Angle(&encoderFront);
-
 //	while (state_count++ < 1000)
 //		MPU6050_Read_All(&hi2c1, &MPU6050);
 //	initial_angle = MPU6050.KalmanAngleX;
 	state_count = 0;
 	emBrakeMotor(1);
+
 	//Reset encoder position
 //	ENCODER_Set_ZeroPosition(&encoderBack);
 //	ENCODER_Set_ZeroPosition(&encoderFront);
-	HAL_Delay(500);
-	//debug variable
-//	uint32_t debug_prev_time = HAL_GetTick();
-//	uint8_t led_status = 0;
-	//  float speed = 0;
+//	HAL_Delay(100);
+
 	while (1)
 	{
-		//Code to debug with blinking LED
-//		if (HAL_GetTick() - debug_prev_time >= 1000)
-//		{
-//			if (led_status == 0)
-//			{
-//				//	      count++;
-//				HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
-//				led_status = 1;
-//			}
-//			else if (led_status == 1)
-//			{
-//				HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
-//				led_status = 0;
-//			}
-//			debug_prev_time = HAL_GetTick();
-//		}
-
-		//Debug BD25L
-		//      if(speed>100){
-		//	bd25l_Brake(&rearMotor);
-		//	bd25l_Brake(&backMotor);
-		//	speed=0;
-		//	HAL_Delay(5000);
-		//      }
-		//      if (speed<=100){
-		//	  runMotor(&rearMotor, speed, 0);
-		//	  runMotor(&backMotor, speed, 0);
-		//	  speed+=10;
-		//	  HAL_Delay(1000);
-		//      }
-
-		//Debug Limit switch
-		//      rearLS1 = HAL_GPIO_ReadPin(LimitSW1_GPIO_Port, LimitSW1_Pin);
-		//      rearLS2 = HAL_GPIO_ReadPin(LimitSW2_GPIO_Port, LimitSW2_Pin);
-		//      backLS1 = HAL_GPIO_ReadPin(LimitSW3_GPIO_Port, LimitSW3_Pin);
-		//      backLS2 = HAL_GPIO_ReadPin(LimitSW4_GPIO_Port, LimitSW4_Pin);
-		//      HAL_Delay(500);
-
-		//      //Test speed commands on bse motor
-		//      MOTOR_TIM.Instance->RIGHT_MOTOR_CHANNEL -= 50;
-		//      MOTOR_TIM.Instance->LEFT_MOTOR_CHANNEL -= 50;
-		//      runMotor(&backMotor, 100, 1);
-
-		//      runMotor(&backMotor, speed++, 1);
 		//Loop should execute once every 1 tick
 		if (HAL_GetTick() - prev_time >= 1)
 		{
@@ -484,9 +439,8 @@ int main(void)
 					&& lifting_mode == LANDING)
 			{
 				//Stop the base wheel completely
-				baseWheelSpeed.cur_r = 0;
-				baseWheelSpeed.cur_l = 0;
-				baseMotorCommand();
+				MotorThrottle(&sabertooth_handler, 1, 0);
+				MotorThrottle(&sabertooth_handler, 2, 0);
 
 				//Disengage the motor brake
 				emBrakeMotor(1);
@@ -535,8 +489,9 @@ int main(void)
 			{
 				HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
 				HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);
-				wheel_Control(&baseWheelSpeed);
-				baseMotorCommand();
+//				wheel_Control(&baseWheelSpeed);
+				computeSpeed(&differential_drive_handler, joystick_handler.x, joystick_handler.y, gear_level);
+				differentialDrivetoSabertoothOutputAdapter(&differential_drive_handler, &sabertooth_handler);
 				front_touchdown = false;
 				back_touchdown = false;
 				climb_first_iteration = true;
@@ -706,9 +661,8 @@ int main(void)
     /* USER CODE BEGIN 3 */
 
 	}
-	HAL_TIM_PWM_Stop(&MOTOR_TIM, TIM_CHANNEL_1);
-	HAL_TIM_PWM_Stop(&MOTOR_TIM, TIM_CHANNEL_2);
-	brakeMotor(&backMotor, 1);
+	MotorShutdown(&sabertooth_handler);
+	brakeMotor(&rearMotor, 1);
 	brakeMotor(&backMotor, 1);
   /* USER CODE END 3 */
 }
@@ -772,8 +726,9 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 		if (HAL_GetTick() - prev_adc_time > 1)
 		{
 			ADC_Read(adc_rawData);
-			tempJoyRawDataX = adc_rawData[2];
-			tempJoyRawDataY = adc_rawData[1];
+			joystick_handler.x = adc_rawData[2];
+			joystick_handler.y = adc_rawData[1];
+			calculatePos(&joystick_handler);
 			prev_adc_time = HAL_GetTick();
 		}
 	}
@@ -782,12 +737,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 		break;
 	}
 }
-
-//void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){
-//	if (huart->Instance == USART3){
-//
-//	}
-//}
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
@@ -816,6 +765,11 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 						+ (receive_buf[10]);
 			}
 		}
+	}
+	//Sabertooth Callback
+	if (huart->Instance == USART6)
+	{
+		MotorProcessReply(&sabertooth_handler, motor_receive_buf, sizeof(motor_receive_buf));
 	}
 
 }
@@ -872,12 +826,6 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 	}
 }
 
-void baseMotorCommand(void)
-{
-	MOTOR_TIM.Instance->RIGHT_MOTOR_CHANNEL = (int) baseWheelSpeed.cur_r + 1500;
-	MOTOR_TIM.Instance->LEFT_MOTOR_CHANNEL = (int) baseWheelSpeed.cur_l + 1500;
-}
-
 //Hub motor move forward  by preset dist
 bool climbingForward(float dist)
 {
@@ -905,13 +853,6 @@ bool climbingForward(float dist)
 					- prev_enc) / dt) * 2 * M_PI / 4096;
 			dist_remaining -= (HUB_DIAMETER * rad_per_s * dt) / 2;
 			prev_tick = HAL_GetTick();
-//			if(hub_encoder_feedback.encoder_2 == prev_enc){
-//				if (((HAL_GetTick() - stationary_tick)/ FREQUENCY) > 3){
-//					dist_remaining = 0;
-//				}
-//			}
-//			else
-//				stationary_tick = HAL_GetTick();
 			prev_enc = hub_encoder_feedback.encoder_2;
 
 		}
@@ -934,12 +875,6 @@ bool goto_pos(int enc, PID_t pid_t)
 	if (pid_t == frontClimb_pid)
 	{
 		cur_enc_pos = (int) encoderFront.encoder_pos;
-//		if (pid_need_compute(frontClimb_pid) && fabs(enc - cur_enc_pos) > 5
-//				&& ((encoderFront.encoder_pos >= 0
-//						&& encoderFront.encoder_pos < MAX_FRONT_ALLOWABLE_ENC)
-//						|| (encoderFront.encoder_pos > MIN_FRONT_ALLOWABLE_ENC
-//								&& encoderFront.encoder_pos
-//										<= 4096 * FRONT_GEAR_RATIO)))
 		if (pid_need_compute(frontClimb_pid) && fabs(enc - cur_enc_pos) > 5)
 		{
 			// Read process feedback
@@ -972,12 +907,6 @@ bool goto_pos(int enc, PID_t pid_t)
 	else if (pid_t == backClimb_pid)
 	{
 		cur_enc_pos = (int) encoderBack.encoder_pos;
-//		if (pid_need_compute(backClimb_pid) && fabs(enc - cur_enc_pos) > 5
-//				&& ((encoderBack.encoder_pos >= 0
-//						&& encoderBack.encoder_pos < MAX_BACK_ALLOWABLE_ENC)
-//						|| (encoderBack.encoder_pos > MIN_BACK_ALLOWABLE_ENC
-//								&& encoderBack.encoder_pos
-//										<= 4096 * BACK_GEAR_RATIO)))
 		if (pid_need_compute(backClimb_pid) && fabs(enc - cur_enc_pos) > 5)
 		{
 			// Read process feedback
@@ -1071,9 +1000,8 @@ void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
 	/* User can add his own implementation to report the HAL error return state */
-	HAL_TIM_PWM_Stop(&MOTOR_TIM, TIM_CHANNEL_1);
-	HAL_TIM_PWM_Stop(&MOTOR_TIM, TIM_CHANNEL_2);
-	brakeMotor(&backMotor, 1);
+	MotorShutdown(&sabertooth_handler);
+	brakeMotor(&rearMotor, 1);
 	brakeMotor(&backMotor, 1);
   /* USER CODE END Error_Handler_Debug */
 }

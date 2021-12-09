@@ -1,4 +1,6 @@
+"./Core/Src/DifferentialDrivetoSabertooth.o"
 "./Core/Src/PID.o"
+"./Core/Src/Sabertooth.o"
 "./Core/Src/X2_6010S.o"
 "./Core/Src/adc.o"
 "./Core/Src/battery.o"

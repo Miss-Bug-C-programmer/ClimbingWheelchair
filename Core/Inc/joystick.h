@@ -16,9 +16,8 @@ typedef struct
   int  	y;
 }JoystickHandle;
 
-extern JoystickHandle processed_hjoystick;
-extern JoystickHandle raw_hJoystick;
+extern JoystickHandle joystick_handler;
 
-void calculatePos(void);
+void calculatePos(JoystickHandle* joystick_handler);
 
 #endif /* INC_JOYSTICK_H_ */
