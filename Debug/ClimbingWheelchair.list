@@ -1271,18 +1271,18 @@ void differentialDrivetoSabertoothOutputAdapter(differentialDrive_Handler* dd_ha
  8000f64:	eefd 7ae7 	vcvt.s32.f32	s15, s15
  8000f68:	ee17 3a90 	vmov	r3, s15
  8000f6c:	60bb      	str	r3, [r7, #8]
-	MotorThrottle(st_handler, TARGET_1, motor_output_1);
+	MotorThrottle(st_handler, TARGET_2, motor_output_1);
  8000f6e:	68fb      	ldr	r3, [r7, #12]
  8000f70:	b21b      	sxth	r3, r3
  8000f72:	461a      	mov	r2, r3
- 8000f74:	2101      	movs	r1, #1
+ 8000f74:	2102      	movs	r1, #2
  8000f76:	6838      	ldr	r0, [r7, #0]
  8000f78:	f000 fab2 	bl	80014e0 <MotorThrottle>
-	MotorThrottle(st_handler, TARGET_2, motor_output_2);
+	MotorThrottle(st_handler, TARGET_1, motor_output_2);
  8000f7c:	68bb      	ldr	r3, [r7, #8]
  8000f7e:	b21b      	sxth	r3, r3
  8000f80:	461a      	mov	r2, r3
- 8000f82:	2102      	movs	r1, #2
+ 8000f82:	2101      	movs	r1, #1
  8000f84:	6838      	ldr	r0, [r7, #0]
  8000f86:	f000 faab 	bl	80014e0 <MotorThrottle>
 }
